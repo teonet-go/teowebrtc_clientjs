@@ -1,3 +1,3 @@
-module github.com/teonet-go/teowebrtc_clientjs
+module github.com/kirill-scherba/teowebrtc_clientjs
 
-go 1.16
+go 1.19

@@ -26,7 +26,7 @@ window.addEventListener("load", function(evt) {
         if (ws) {
             return false;
         }
-        ws = new WebSocket("ws://localhost:8080/signal");
+        ws = new WebSocket("ws://localhost:8081/signal");
         ws.onopen = function(evt) {
             print("OPEN");
         }

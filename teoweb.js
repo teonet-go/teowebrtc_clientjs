@@ -6,109 +6,180 @@
  */
 function Teoweb() {
 
-console.log("Teoweb loaded");
+    let startTime = Date.now();
+    console.log("Teoweb loaded");
 
-var url = "ws://localhost:8080/signal";
-var ws = new WebSocket(url);
-var server = "server-1";
+    // Connect to signal server
+    var url = "ws://localhost:8081/signal";
+    var ws = new WebSocket(url);
 
-const configuration = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-const pc = new RTCPeerConnection(configuration);
-const dc = pc.createDataChannel("teo");
+    // WebRTC server name
+    const server = "server-1";
+    const login = "web-1"
+    var offer;
+    var pc;
 
-// sendSignal send signal to signal server
-sendSignal = function(signal) {
-    ws.send(JSON.stringify(signal))
-}
+    // sendSignal send signal to signal server
+    sendSignal = function (signal) {
+        var s = JSON.stringify(signal)
+        ws.send(s)
+        console.log("send signal:", s)
+    };
 
-// Show signaling state
-pc.onsignalingstatechange = function(ev) {
-    console.log("signaling state:", pc.signalingState)
-  };
+    // processSignal process signal commands
+    processSignal = function () {
+        // on websocket open
+        ws.onopen = function (ev) {
+            console.log("ws.onopen");
+            console.log("send login", login);
+            sendSignal({ signal: "login", login: login });
+        }
+        // on websocket error
+        ws.onerror = function (ev) {
+            console.log("ws.onerror");
+        }
+        // on websocket close
+        ws.onclose = function (ev) {
+            console.log("ws.onclose");
+        }
+        // on websocket message
+        ws.onmessage = function (ev) {
+            obj = JSON.parse(ev.data);
 
-// Show ice connection state
-pc.oniceconnectionstatechange = function(ev) {
-    console.log("ICE connection state:", pc.iceConnectionState)
-};
+            switch (obj['signal']) {
+                case "login":
+                    console.log("got login answer signal", obj);
+                    pc = processWebrtc();
+                    break;
 
-// Send any ice candidates to the other peer.
-pc.onicecandidate = function(ev) {
-    if (ev.candidate) {
-        console.log("send candidate", ev.candidate);
-        sendSignal({ signal: "candidate", peer: server, data: ev.candidate });
-    } else {
-        /* there are no more candidates coming during this negotiation */
-    }
-};  
+                case "answer":
+                    console.log("got answer to offer signal", obj.data);
+                    let answer = obj.data;
+                    pc.setRemoteDescription(answer);
+                    break;
 
-// Let the "negotiationneeded" event trigger offer generation.
-pc.onnegotiationneeded = async () => {
-  try {
-    offer = await pc.createOffer();
-    pc.setLocalDescription(offer);
-    console.log("send offer");
-    sendSignal({ signal: "offer", peer: server, data: offer })
-  } catch (err) {
-    console.error(err);
-  }
-};
+                case "candidate":
+                    console.log("got candidate signal", obj.data);
+                    if (obj.data == null) {
+                        console.log("all remote candidate processed");
+                        break;
+                    }
+                    // Add remote ICE candidate
+                    pc.addIceCandidate(obj.data);
+                    // .then(
+                    //     function () { console.log("ok, state:", pc.iceConnectionState); },
+                    //     function (err) { console.log("error:", err); }
+                    // );
+                    break;
 
-ws.onopen = function(ev)  { 
-    console.log("ws.onopen");
-    login = "web-1"
-    console.log("send login", login);
-    sendSignal({ signal: "login", login: login });
-}
-ws.onerror = function(ev) { 
-    //
-}
-ws.onclose = function(ev) { 
-    //
-}
-ws.onmessage = function(ev) { 
-    obj = JSON.parse(ev.data);
-    if (obj['signal'] == undefined) {
-        console.log("Wrong signal received")
-        return
-    }
+                default:
+                    console.log("Wrong signal received, ev:", ev);
+                    break;
+            }
+        }
+    };
 
-    switch (obj['signal']) {
-        
-        case "login":
-            console.log("got login answer");
-            // console.log("send offer");
-            // sendOffer(server);
-            break;
+    // processWebrtc process webrtc commands
+    processWebrtc = function () {
 
-        case "answer":
-            console.log("got answer signal", obj.data);
-            pc.setRemoteDescription(obj.data)
-            break;
+        // Connect to webrtc server
+        const configuration = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+        const pc = new RTCPeerConnection(configuration);
+        const dc = pc.createDataChannel("teo");
 
-        case "candidate":
-            console.log("got candidate signal", obj.data);
-            pc.addIceCandidate(obj.data);
-            // .then(
-            //     function(){ console.log("ok"); },
-            //     function(){ console.log("err"); }
-            // );
-            break;    
+        // Show signaling state
+        pc.onsignalingstatechange = function (ev) {
+            console.log("signaling state change:", pc.signalingState)
+            if (pc.signalingState == "stable") {
+                // ...
+            }
+        };
 
-        // default:    
-    }
-}
+        // Send local ice candidates to the remote peer
+        pc.onicecandidate = function (ev) {
+            if (ev.candidate) {
+                candidate = ev.candidate;
+                console.log("send candidate", candidate);
+                sendSignal({ signal: "candidate", peer: server, data: candidate });
+            } else {
+                console.log("collection of local candidates is finished");
+                sendSignal({ signal: "candidate", peer: server, data: null });
+            }
+        };
 
-return {
+        // Show ice connection state
+        pc.oniceconnectionstatechange = function (ev) {
+            console.log("ICE connection state change:", pc.iceConnectionState)
+            if (pc.iceConnectionState == "disconnected") {
+                dc.close();
+                pc.close();
+                Teoweb();
+            }
+        };
 
-/**
-  * Send login command signal server
-  *  
-  * @param {string} addr Name of this client
-  * @returns {undefined}
-  */  
-// login: function (addr) {
-//     ws.send('{ "signal": "login", "login": "' + addr + '" }');
-// },
+        // Let the "negotiationneeded" event trigger offer generation.
+        pc.onnegotiationneeded = async () => {
+            try {
+                offer = await pc.createOffer();
+                pc.setLocalDescription(offer);
+                console.log("send offer");
+                sendSignal({ signal: "offer", peer: server, data: offer })
+            } catch (err) {
+                console.error(err);
+            }
+        };
 
-};
+        pc.ondatachannel = function (ev) {
+            console.log("on data channel", ev)
+        };
+
+        let dcClosed = false;
+        dc.onopen = function () {
+            let endTime = Date.now()
+            console.log("dc.onopen, time since start:", endTime - startTime, "ms");
+            let id = 0;
+            sendMsg = function () {
+                id++;
+                let msg = "Hello from " + login + " with id " + id;
+                console.log("send:", msg)
+                dc.send(msg);
+
+                setTimeout(() => {
+                    if (dcClosed) {
+                        return;
+                    }
+                    sendMsg();
+                }, "5000")
+            }
+            sendMsg();
+        }
+
+        dc.onclose = function () {
+            console.log("dc.onclose");
+            dcClosed = true;
+        }
+
+        dc.onmessage = function (ev) {
+            var enc = new TextDecoder("utf-8");
+            console.log("get:", enc.decode(ev.data));
+        }
+
+        return pc;
+    };
+
+    processSignal();
+
+    return {
+
+        /**
+          * Send login command signal server
+          *  
+          * @param {string} addr Name of this client
+          * @returns {undefined}
+          */
+        // login: function (addr) {
+        //     ws.send('{ "signal": "login", "login": "' + addr + '" }');
+        // },
+
+    };
 };
