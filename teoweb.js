@@ -2,22 +2,21 @@
  * Teonet web application client class
  * 
  * @param {Object} ws Websocket connection
- * @returns {Teocli.teowebAnonym$0}
+ * @param function name(peer, dc) connected
+ * @returns 
  */
-function Teoweb() {
+function TeoConnect(addr, login, server, connected) {
 
     let startTime = Date.now();
-    console.log("Teoweb loaded");
+    console.log("TeoConnect started v 1");
 
     // Connect to signal server
-    var url = "ws://localhost:8081/signal";
-    var ws = new WebSocket(url);
+    var ws = new WebSocket(addr);
+    var pc;
 
     // WebRTC server name
-    const server = "server-1";
-    const login = "web-1"
-    var offer;
-    var pc;
+    // var offer;
+    // var pc;
 
     // sendSignal send signal to signal server
     sendSignal = function (signal) {
@@ -28,6 +27,9 @@ function Teoweb() {
 
     // processSignal process signal commands
     processSignal = function () {
+
+        // var pc;
+
         // on websocket open
         ws.onopen = function (ev) {
             console.log("ws.onopen");
@@ -49,7 +51,7 @@ function Teoweb() {
             switch (obj['signal']) {
                 case "login":
                     console.log("got login answer signal", obj);
-                    pc = processWebrtc();
+                    processWebrtc();
                     break;
 
                 case "answer":
@@ -65,7 +67,10 @@ function Teoweb() {
                         break;
                     }
                     // Add remote ICE candidate
-                    pc.addIceCandidate(obj.data);
+
+                    const candidate = new RTCIceCandidate(obj.data);
+
+                    pc.addIceCandidate(candidate);
                     // .then(
                     //     function () { console.log("ok, state:", pc.iceConnectionState); },
                     //     function (err) { console.log("error:", err); }
@@ -84,8 +89,8 @@ function Teoweb() {
 
         // Connect to webrtc server
         const configuration = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-        const pc = new RTCPeerConnection(configuration);
-        const dc = pc.createDataChannel("teo");
+        pc = new RTCPeerConnection(configuration);
+        var dc = pc.createDataChannel("teo");
 
         // Show signaling state
         pc.onsignalingstatechange = function (ev) {
@@ -99,7 +104,7 @@ function Teoweb() {
         pc.onicecandidate = function (ev) {
             if (ev.candidate) {
                 candidate = ev.candidate;
-                console.log("send candidate", candidate);
+                console.log("send candidate:", candidate);
                 sendSignal({ signal: "candidate", peer: server, data: candidate });
             } else {
                 console.log("collection of local candidates is finished");
@@ -109,21 +114,26 @@ function Teoweb() {
 
         // Show ice connection state
         pc.oniceconnectionstatechange = function (ev) {
-            console.log("ICE connection state change:", pc.iceConnectionState)
-            if (pc.iceConnectionState == "disconnected") {
-                dc.close();
-                pc.close();
-                Teoweb();
+            console.log("ICE connection state change:", pc.iceConnectionState);
+            switch (pc.iceConnectionState) {
+                case "connected":
+                    let endTime = Date.now()
+                    console.log("time since start:", endTime - startTime, "ms");
+                    connected(server, dc);
+                    break;
+                case "disconnected":
+                    dc.close();
+                    break;
             }
         };
 
         // Let the "negotiationneeded" event trigger offer generation.
         pc.onnegotiationneeded = async () => {
             try {
-                offer = await pc.createOffer();
+                let offer = await pc.createOffer();
                 pc.setLocalDescription(offer);
                 console.log("send offer");
-                sendSignal({ signal: "offer", peer: server, data: offer })
+                sendSignal({ signal: "offer", peer: server, data: offer });
             } catch (err) {
                 console.error(err);
             }
@@ -133,36 +143,35 @@ function Teoweb() {
             console.log("on data channel", ev)
         };
 
-        let dcClosed = false;
-        dc.onopen = function () {
-            let endTime = Date.now()
-            console.log("dc.onopen, time since start:", endTime - startTime, "ms");
-            let id = 0;
-            sendMsg = function () {
-                id++;
-                let msg = "Hello from " + login + " with id " + id;
-                console.log("send:", msg)
-                dc.send(msg);
+        // let dcClosed = false;
+        // dc.onopen = function () {
+        //     let endTime = Date.now()
+        //     console.log("dc.onopen, time since start:", endTime - startTime, "ms");
+        //     let id = 0;
+        //     sendMsg = function () {
+        //         id++;
+        //         let msg = "Hello from " + login + " with id " + id;
+        //         console.log("send:", msg)
+        //         dc.send(msg);
+        //         setTimeout(() => {
+        //             if (dcClosed) {
+        //                 return;
+        //             }
+        //             sendMsg();
+        //         }, "5000")
+        //     }
+        //     sendMsg();
+        // }
 
-                setTimeout(() => {
-                    if (dcClosed) {
-                        return;
-                    }
-                    sendMsg();
-                }, "5000")
-            }
-            sendMsg();
-        }
+        // dc.onclose = function () {
+        //     console.log("dc.onclose");
+        //     dcClosed = true;
+        // }
 
-        dc.onclose = function () {
-            console.log("dc.onclose");
-            dcClosed = true;
-        }
-
-        dc.onmessage = function (ev) {
-            var enc = new TextDecoder("utf-8");
-            console.log("get:", enc.decode(ev.data));
-        }
+        // dc.onmessage = function (ev) {
+        //     var enc = new TextDecoder("utf-8");
+        //     console.log("get:", enc.decode(ev.data));
+        // }
 
         return pc;
     };
