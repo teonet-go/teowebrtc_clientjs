@@ -8,44 +8,42 @@
 window.addEventListener("load", function(evt) {
 
     // Connect to Teonet WebRTC server
-    const login = "web-1"
-    var teoweb = TeoConnect("ws://localhost:8081/signal", login, "server-1",
-        function(peer, dc){
-            console.log("connected to", peer);
+    const url = "ws://localhost:8081/signal";
+    const login = "web-1";
+    const server = "server-1";
+    let connected = function (peer, dc) {
+        console.log("connected to", peer);
 
-            let dcClosed = false;
-            dc.onopen = function () {
-                console.log("dc.onopen, peer:", peer);
+        dc.onopen = function () {
+            console.log("dc.onopen, peer:", peer);
 
-                // Send messages to peer
-                let id = 0;
-                sendMsg = function () {
-                    id++;
-                    let msg = "Hello from " + login + " with id " + id;
-                    console.log("send:", msg)
-                    dc.send(msg);
+            // Send messages to peer
+            let id = 0;
+            sendMsg = function () {
+                id++;
+                let msg = "Hello from " + login + " with id " + id;
+                console.log("send:", msg);
+                dc.send(msg);
+                setTimeout(() => {
+                    if (dc.readyState != "open") {
+                        return;
+                    }
+                    sendMsg();
+                }, "5000");
+            }
+            sendMsg();
+        };
 
-                    setTimeout(() => {
-                        if (dcClosed) {
-                            return;
-                        }
-                        sendMsg();
-                    }, "5000");
-                }
-                sendMsg();
-            };
+        dc.onclose = function () {
+            console.log("dc.onclose");
+        };
 
-            dc.onclose = function () {
-                console.log("dc.onclose");
-                dcClosed = true;
-            };
-
-            dc.onmessage = function (ev) {
-                var enc = new TextDecoder("utf-8");
-                console.log("get:", enc.decode(ev.data));
-            };
-        },
-    );
+        dc.onmessage = function (ev) {
+            var enc = new TextDecoder("utf-8");
+            console.log("get:", enc.decode(ev.data));
+        };
+    };
+    TeoConnect(url, login, server, connected);
 
     // Test WebRTC signal server
     var output = document.getElementById("output");

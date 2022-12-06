@@ -10,16 +10,19 @@ function TeoConnect(addr, login, server, connected) {
     let startTime = Date.now();
     console.log("TeoConnect started v 1");
 
-    // Connect to signal server
-    var ws = new WebSocket(addr);
+    // Signal and WebRTC objects
+    var ws;
     var pc;
 
-    // WebRTC server name
-    // var offer;
-    // var pc;
+    var reconnect = function () {
+        setTimeout(() => {
+            console.log("reconnect");
+            TeoConnect(addr, login, server, connected);
+        }, "3000");
+    };
 
     // sendSignal send signal to signal server
-    sendSignal = function (signal) {
+    var sendSignal = function (signal) {
         var s = JSON.stringify(signal)
         ws.send(s)
         console.log("send signal:", s)
@@ -28,7 +31,7 @@ function TeoConnect(addr, login, server, connected) {
     // processSignal process signal commands
     processSignal = function () {
 
-        // var pc;
+        ws = new WebSocket(addr);
 
         // on websocket open
         ws.onopen = function (ev) {
@@ -36,14 +39,19 @@ function TeoConnect(addr, login, server, connected) {
             console.log("send login", login);
             sendSignal({ signal: "login", login: login });
         }
+
         // on websocket error
         ws.onerror = function (ev) {
             console.log("ws.onerror");
+            ws.close();
+            reconnect();
         }
+
         // on websocket close
         ws.onclose = function (ev) {
             console.log("ws.onclose");
         }
+
         // on websocket message
         ws.onmessage = function (ev) {
             obj = JSON.parse(ev.data);
@@ -79,6 +87,9 @@ function TeoConnect(addr, login, server, connected) {
 
                 default:
                     console.log("Wrong signal received, ev:", ev);
+                    ws.close();
+                    pc.close();
+                    reconnect();
                     break;
             }
         }
@@ -123,6 +134,7 @@ function TeoConnect(addr, login, server, connected) {
                     break;
                 case "disconnected":
                     dc.close();
+                    reconnect();
                     break;
             }
         };
@@ -142,36 +154,6 @@ function TeoConnect(addr, login, server, connected) {
         pc.ondatachannel = function (ev) {
             console.log("on data channel", ev)
         };
-
-        // let dcClosed = false;
-        // dc.onopen = function () {
-        //     let endTime = Date.now()
-        //     console.log("dc.onopen, time since start:", endTime - startTime, "ms");
-        //     let id = 0;
-        //     sendMsg = function () {
-        //         id++;
-        //         let msg = "Hello from " + login + " with id " + id;
-        //         console.log("send:", msg)
-        //         dc.send(msg);
-        //         setTimeout(() => {
-        //             if (dcClosed) {
-        //                 return;
-        //             }
-        //             sendMsg();
-        //         }, "5000")
-        //     }
-        //     sendMsg();
-        // }
-
-        // dc.onclose = function () {
-        //     console.log("dc.onclose");
-        //     dcClosed = true;
-        // }
-
-        // dc.onmessage = function (ev) {
-        //     var enc = new TextDecoder("utf-8");
-        //     console.log("get:", enc.decode(ev.data));
-        // }
 
         return pc;
     };
