@@ -8,9 +8,10 @@
 window.addEventListener("load", function(evt) {
 
     // Connect to Teonet WebRTC server
-    const url = "ws://localhost:8081/signal";
+    const url = "ws://gt7-2.myteo.net:8081/signal";
     const login = "web-1";
     const server = "server-1";
+    
     let connected = function (peer, dc) {
         console.log("connected to", peer);
 

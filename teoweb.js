@@ -31,6 +31,7 @@ function TeoConnect(addr, login, server, connected) {
     // processSignal process signal commands
     processSignal = function () {
 
+        console.log("connect to:", addr);
         ws = new WebSocket(addr);
 
         // on websocket open
@@ -74,10 +75,9 @@ function TeoConnect(addr, login, server, connected) {
                         console.log("all remote candidate processed");
                         break;
                     }
+
                     // Add remote ICE candidate
-
                     const candidate = new RTCIceCandidate(obj.data);
-
                     pc.addIceCandidate(candidate);
                     // .then(
                     //     function () { console.log("ok, state:", pc.iceConnectionState); },
