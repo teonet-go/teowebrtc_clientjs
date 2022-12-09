@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
-<script type="text/javascript" src="teoweb.js"></script>
-<script>  
+<script type="module" src="teoweb.js"></script>
+<script type="module">
+import teoweb from './teoweb.js';
 window.addEventListener("load", function(evt) {
 
     // Connect to Teonet WebRTC server
@@ -12,6 +13,7 @@ window.addEventListener("load", function(evt) {
     const login = "web-1";
     const server = "server-1";
     
+    let teo = new teoweb();
     let connected = function (peer, dc) {
         console.log("connected to", peer);
 
@@ -20,7 +22,7 @@ window.addEventListener("load", function(evt) {
 
             // Send messages to peer
             let id = 0;
-            sendMsg = function () {
+            let sendMsg = function () {
                 id++;
                 let msg = "Hello from " + login + " with id " + id;
                 console.log("send:", msg);
@@ -44,7 +46,9 @@ window.addEventListener("load", function(evt) {
             console.log("get:", enc.decode(ev.data));
         };
     };
-    TeoConnect(url, login, server, connected);
+
+    teo.connect(url, login, server);
+    teo.onconnected = connected;
 
     // Test WebRTC signal server
     var output = document.getElementById("output");

@@ -1,0 +1,28 @@
+{
+  "type": "module",
+  "name": "@teonet-go/teoweb",
+  "version": "0.0.19",
+  "description": "Teonet WebRTC data channel",
+  "homepage": "https://github.com/teonet-go/teowebrtc-clientjs",
+  "main": "teoweb.js",
+  "directories": {},
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/teonet-go/teowebrtc-clientjs.git"
+  },
+  "keywords": [
+    "teonet",
+    "network",
+    "webrtc"
+  ],
+  "dependencies": {},
+  "author": "Kirill Scherba <kirill@scherba.ru> (https://github.com/kirill-scherba)",
+  "contributors": [],
+  "license": "BSD"
+}
