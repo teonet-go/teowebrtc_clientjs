@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.0.20";
+const version = "0.0.21";
 
 /**
  * Create teoweb object
@@ -18,7 +18,7 @@ function teoweb() {
          */
         connect: function (addr, login, server, connected) {
 
-            console.log("teoweb.connect started ver. " + version);
+            console.debug("teoweb.connect started ver. " + version);
 
             if (connected) {
                 this.onconnected = connected;
@@ -34,7 +34,7 @@ function teoweb() {
 
             var reconnect = function () {
                 setTimeout(() => {
-                    console.log("reconnect");
+                    console.debug("reconnect");
                     that.connect(addr, login, server, that.onconnected);
                 }, "3000");
             };
@@ -43,32 +43,32 @@ function teoweb() {
             var sendSignal = function (signal) {
                 var s = JSON.stringify(signal)
                 ws.send(s)
-                console.log("send signal:", s)
+                console.debug("send signal:", s)
             };
 
             // processSignal process signal commands
             let processSignal = function () {
 
-                console.log("connect to:", addr);
+                console.debug("connect to:", addr);
                 ws = new WebSocket(addr);
 
                 // on websocket open
                 ws.onopen = function (ev) {
-                    console.log("ws.onopen");
-                    console.log("send login", login);
+                    console.debug("ws.onopen");
+                    console.debug("send login", login);
                     sendSignal({ signal: "login", login: login });
                 }
 
                 // on websocket error
                 ws.onerror = function (ev) {
-                    console.log("ws.onerror");
+                    console.debug("ws.onerror");
                     ws.close();
                     reconnect();
                 }
 
                 // on websocket close
                 ws.onclose = function (ev) {
-                    console.log("ws.onclose");
+                    console.debug("ws.onclose");
                 }
 
                 // on websocket message
@@ -77,20 +77,20 @@ function teoweb() {
 
                     switch (obj['signal']) {
                         case "login":
-                            console.log("got login answer signal", obj);
+                            console.debug("got login answer signal", obj);
                             processWebrtc();
                             break;
 
                         case "answer":
-                            console.log("got answer to offer signal", obj.data);
+                            console.debug("got answer to offer signal", obj.data);
                             let answer = obj.data;
                             pc.setRemoteDescription(answer);
                             break;
 
                         case "candidate":
-                            console.log("got candidate signal", obj.data);
+                            console.debug("got candidate signal", obj.data);
                             if (obj.data == null) {
-                                console.log("all remote candidate processed");
+                                console.debug("all remote candidate processed");
                                 break;
                             }
 
@@ -98,13 +98,13 @@ function teoweb() {
                             const candidate = new RTCIceCandidate(obj.data);
                             pc.addIceCandidate(candidate);
                             // .then(
-                            //     function () { console.log("ok, state:", pc.iceConnectionState); },
-                            //     function (err) { console.log("error:", err); }
+                            //     function () { console.debug("ok, state:", pc.iceConnectionState); },
+                            //     function (err) { console.debug("error:", err); }
                             // );
                             break;
 
                         default:
-                            console.log("Wrong signal received, ev:", ev);
+                            console.debug("Wrong signal received, ev:", ev);
                             ws.close();
                             pc.close();
                             reconnect();
@@ -125,7 +125,7 @@ function teoweb() {
 
                 // Show signaling state
                 pc.onsignalingstatechange = function (ev) {
-                    console.log("signaling state change:", pc.signalingState)
+                    console.debug("signaling state change:", pc.signalingState)
                     if (pc.signalingState == "stable") {
                         // ...
                     }
@@ -135,21 +135,21 @@ function teoweb() {
                 pc.onicecandidate = function (ev) {
                     if (ev.candidate) {
                         const candidate = ev.candidate;
-                        console.log("send candidate:", candidate);
+                        console.debug("send candidate:", candidate);
                         sendSignal({ signal: "candidate", peer: server, data: candidate });
                     } else {
-                        console.log("collection of local candidates is finished");
+                        console.debug("collection of local candidates is finished");
                         sendSignal({ signal: "candidate", peer: server, data: null });
                     }
                 };
 
                 // Show ice connection state
                 pc.oniceconnectionstatechange = function (ev) {
-                    console.log("ICE connection state change:", pc.iceConnectionState);
+                    console.debug("ICE connection state change:", pc.iceConnectionState);
                     switch (pc.iceConnectionState) {
                         case "connected":
                             let endTime = Date.now()
-                            console.log("time since start:", endTime - startTime, "ms");
+                            console.debug("time since start:", endTime - startTime, "ms");
                             that.dc = dc;
                             that.onconnected(server, dc);
                             break;
@@ -166,7 +166,7 @@ function teoweb() {
                     try {
                         let offer = await pc.createOffer();
                         pc.setLocalDescription(offer);
-                        console.log("send offer");
+                        console.debug("send offer");
                         sendSignal({ signal: "offer", peer: server, data: offer });
                     } catch (err) {
                         console.error(err);
@@ -174,7 +174,7 @@ function teoweb() {
                 };
 
                 pc.ondatachannel = function (ev) {
-                    console.log("on data channel", ev)
+                    console.debug("on data channel", ev)
                 };
 
                 return pc;
@@ -185,10 +185,10 @@ function teoweb() {
         onconnected: function () { },
         send: function (msg) {
             if (this.dc) {
-                console.log("dc.send msg:", msg);
+                console.debug("dc.send msg:", msg);
                 this.dc.send(msg);
             } else {
-                console.log("dc.send error, dc does not exists");
+                console.debug("dc.send error, dc does not exists");
             }
         },
         dc: null,
