@@ -1,7 +1,7 @@
 {
-  "type": "module",
   "name": "teoweb",
-  "version": "0.0.21",
+  "type": "module",
+  "version": "0.0.22",
   "description": "Teonet WebRTC data channel",
   "homepage": "https://github.com/teonet-go/teowebrtc-clientjs",
   "main": "teoweb.js",
