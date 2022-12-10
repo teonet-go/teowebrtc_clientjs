@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.0.21";
+const version = "0.0.22";
 
 /**
  * Create teoweb object
@@ -29,24 +29,35 @@ function teoweb() {
             let startTime = Date.now();
 
             // Signal and WebRTC objects
-            var ws;
-            var pc;
+            let ws;
+            let pc;
 
-            var reconnect = function () {
+            // Close signal server ws connection when local and remote ice 
+            // candidate are done
+            let localDone = false;
+            let remoteDone = false;
+            let closeSignal = function (local, remote) {
+                if (local) localDone = true;
+                if (remote) remoteDone = true;
+                if (localDone && remoteDone) ws.close();
+            }
+
+            // Reconnect to Signal and restart WebRTC connection
+            let reconnect = function () {
                 setTimeout(() => {
                     console.debug("reconnect");
                     that.connect(addr, login, server, that.onconnected);
                 }, "3000");
             };
 
-            // sendSignal send signal to signal server
-            var sendSignal = function (signal) {
-                var s = JSON.stringify(signal)
+            // Send signal to signal server
+            let sendSignal = function (signal) {
+                let s = JSON.stringify(signal);
                 ws.send(s)
                 console.debug("send signal:", s)
             };
 
-            // processSignal process signal commands
+            // Process signal commands
             let processSignal = function () {
 
                 console.debug("connect to:", addr);
@@ -91,6 +102,7 @@ function teoweb() {
                             console.debug("got candidate signal", obj.data);
                             if (obj.data == null) {
                                 console.debug("all remote candidate processed");
+                                closeSignal(false, true);
                                 break;
                             }
 
@@ -121,7 +133,7 @@ function teoweb() {
                     iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
                 };
                 pc = new RTCPeerConnection(configuration);
-                var dc = pc.createDataChannel("teo");
+                let dc = pc.createDataChannel("teo");
 
                 // Show signaling state
                 pc.onsignalingstatechange = function (ev) {
@@ -140,6 +152,7 @@ function teoweb() {
                     } else {
                         console.debug("collection of local candidates is finished");
                         sendSignal({ signal: "candidate", peer: server, data: null });
+                        closeSignal(true, false);
                     }
                 };
 
