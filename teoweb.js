@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.0.22";
+const version = "0.0.23";
 
 /**
  * Create teoweb object
@@ -15,13 +15,18 @@ function teoweb() {
          * @param {string} login this web application name
          * @param {string} server server name
          * @param {function(peer, dc)} connected function called when connected
+         * @param {function(peer, dc)} disconnected function called when disconnected
          */
-        connect: function (addr, login, server, connected) {
+        connect: function (addr, login, server, connected, disconnected) {
 
             console.debug("teoweb.connect started ver. " + version);
 
             if (connected) {
                 this.onconnected = connected;
+            }
+
+            if (disconnected) {
+                this.ondisconnected = disconnected;
             }
 
             let that = this;
@@ -46,7 +51,7 @@ function teoweb() {
             let reconnect = function () {
                 setTimeout(() => {
                     console.debug("reconnect");
-                    that.connect(addr, login, server, that.onconnected);
+                    that.connect(addr, login, server, that.onconnected, that.ondisconnected);
                 }, "3000");
             };
 
@@ -167,6 +172,7 @@ function teoweb() {
                             that.onconnected(server, dc);
                             break;
                         case "disconnected":
+                            that.ondisconnected(server, dc);
                             that.dc = null;
                             dc.close();
                             reconnect();
@@ -196,6 +202,7 @@ function teoweb() {
             processSignal();
         },
         onconnected: function () { },
+        ondisconnected: function () { },
         send: function (msg) {
             if (this.dc) {
                 console.debug("dc.send msg:", msg);
