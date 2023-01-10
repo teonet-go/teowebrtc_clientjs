@@ -1,12 +1,88 @@
 'use strict';
 
-const version = "0.0.23";
+const version = "0.0.25";
 
 /**
  * Create teoweb object
  *
  */
 function teoweb() {
+    const cmdSubscribe = "subscribe";
+
+    // Map for teoweb
+    let m = function mapCreate() {
+        const m = new Map();
+        let key = 0;
+        return {
+            /** Add new element to the map and return key */
+            add: function (f) {
+                m.set(++key, f);
+                return key;
+            },
+
+            /** Delete element from the map by key */
+            del: function (key) {
+                m.delete(key);
+            },
+
+            /** Delete all elements from the map */
+            delAll: function () {
+                m.forEach(function (f, key) {
+                    m.delete(key);
+                });
+            },
+
+            /** Get element from map by key */
+            get: function (key) {
+                return m.get(key);
+            },
+
+            /** Execute function by key from map */
+            exec: function (key, gw, data) {
+                const f = m.get(key);
+                if (f) f(gw, data);
+            },
+
+            /** Execute all functions from map */
+            execAll: function (gw, data) {
+                m.forEach(function (f/* , key */) {
+                    f(gw, data);
+                });
+            }
+        }
+    }();
+
+    let rtc_id = 0;
+    let onopen = null;
+    let onclose = null;
+
+    let onconnected = function (_, dc) {
+        console.debug("dc connected");
+        dc.onopen = () => {
+            console.debug("dc open");
+            if (onopen) onopen();
+        };
+        dc.onclose = () => {
+            console.debug("dc close");
+            if (onclose) onclose(true);
+        };
+        dc.onmessage = (ev) => {
+            // The ev.data got bytes array, so convert it to string and pare to
+            // gw object. Then base64 decode gw.data to string
+            let enc = new TextDecoder("utf-8");
+            let msg = enc.decode(ev.data);
+            console.debug("dc got answer:", msg);
+            let gw = JSON.parse(msg);
+            const data = atob(gw.data);
+            m.execAll(gw, data);
+        };
+    };
+
+    let ondisconnected = function () {
+        console.debug("disconnected");
+        if (onclose) onclose();
+    };
+
     return {
         /**
          * Connect to Teonet WebRTC server
@@ -14,20 +90,10 @@ function teoweb() {
          * @param {string} addr the WebRTC signal server address
          * @param {string} login this web application name
          * @param {string} server server name
-         * @param {function(peer, dc)} connected function called when connected
-         * @param {function(peer, dc)} disconnected function called when disconnected
          */
-        connect: function (addr, login, server, connected, disconnected) {
+        connect: function (addr, login, server) {
 
             console.debug("teoweb.connect started ver. " + version);
-
-            if (connected) {
-                this.onconnected = connected;
-            }
-
-            if (disconnected) {
-                this.ondisconnected = disconnected;
-            }
 
             let that = this;
             let processWebrtc;
@@ -51,7 +117,7 @@ function teoweb() {
             let reconnect = function () {
                 setTimeout(() => {
                     console.debug("reconnect");
-                    that.connect(addr, login, server, that.onconnected, that.ondisconnected);
+                    that.connect(addr, login, server);
                 }, "3000");
             };
 
@@ -169,10 +235,10 @@ function teoweb() {
                             let endTime = Date.now()
                             console.debug("time since start:", endTime - startTime, "ms");
                             that.dc = dc;
-                            that.onconnected(server, dc);
+                            onconnected(server, dc);
                             break;
                         case "disconnected":
-                            that.ondisconnected(server, dc);
+                            ondisconnected(server, dc);
                             that.dc = null;
                             dc.close();
                             reconnect();
@@ -201,8 +267,18 @@ function teoweb() {
 
             processSignal();
         },
-        onconnected: function () { },
-        ondisconnected: function () { },
+
+        /** Set on dc open function */
+        onOpen: function (f) {
+            onopen = f;
+        },
+
+        /** Set on dc or webrtc close function */
+        onClose: function (f) {
+            onclose = f;
+        },
+
+        /** Send message to WebRTC server */
         send: function (msg) {
             if (this.dc) {
                 console.debug("dc.send msg:", msg);
@@ -211,7 +287,45 @@ function teoweb() {
                 console.debug("dc.send error, dc does not exists");
             }
         },
+
+        /** Send request with command and data to WebRTC server */
+        sendCmd: function (cmd, cmdData) {
+            let data = null;
+            if (cmdData) {
+                data = btoa(cmdData);
+            }
+            let request = {
+                id: rtc_id++,
+                address: "",
+                command: cmd,
+                data: data,
+            };
+            let msg = JSON.stringify(request);
+            this.send(msg);
+        },
+
+        /** Send request with subscribe command to WebRTC server */
+        subscribeCmd: function (cmd) {
+            this.sendCmd(cmdSubscribe, cmd);
+        },
+
+        /** Add reader */
+        addReader: function (f) {
+            return m.add(f);
+        },
+
+        /** Remove reader bye key returned from addReader() function */
+        delReader: function (key) {
+            m.del(key);
+        },
+
+        /** WebRTC datachannel or NULL if not connected */
         dc: null,
+
+        /** Return true if we are connected to WebRTC data channel now */
+        connected() {
+            return dc !== null;
+        }
     }
 };
 
