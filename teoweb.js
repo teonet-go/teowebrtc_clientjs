@@ -69,12 +69,22 @@ function teoweb() {
         dc.onmessage = (ev) => {
             // The ev.data got bytes array, so convert it to string and pare to
             // gw object. Then base64 decode gw.data to string
-            let enc = new TextDecoder("utf-8");
-            let msg = enc.decode(ev.data);
-            console.debug("dc got answer:", msg);
-            let gw = JSON.parse(msg);
-            const data = atob(gw.data);
-            m.execAll(gw, data);
+            // console.debug(ev.data);
+
+            let exec = function (msg) {
+                console.debug("dc got answer:", msg);
+                let gw = JSON.parse(msg);
+                const data = atob(gw.data);
+                m.execAll(gw, data);
+            }
+
+            // Process Blob
+            if (ev.data instanceof Blob) {
+                ev.data.text().then(msg => exec(msg));
+                return;
+            }
+            // Process ArrayBuffer
+            exec(new TextDecoder().decode(ev.data));
         };
     };
 
