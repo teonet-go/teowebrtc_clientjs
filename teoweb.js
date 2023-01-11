@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.0.27";
+const version = "0.0.28";
 
 /**
  * Create teoweb object
@@ -56,43 +56,6 @@ function teoweb() {
     let onopen = null;
     let onclose = null;
 
-    let onconnected = function (_, dc) {
-        console.debug("dc connected");
-        dc.onopen = () => {
-            console.debug("dc open");
-            if (onopen) onopen();
-        };
-        dc.onclose = () => {
-            console.debug("dc close");
-            if (onclose) onclose(true);
-        };
-        dc.onmessage = (ev) => {
-            // The ev.data got bytes array, so convert it to string and pare to
-            // gw object. Then base64 decode gw.data to string
-            // console.debug(ev.data);
-
-            let exec = function (msg) {
-                console.debug("dc got answer:", msg);
-                let gw = JSON.parse(msg);
-                const data = atob(gw.data);
-                m.execAll(gw, data);
-            }
-
-            // Process Blob
-            if (ev.data instanceof Blob) {
-                ev.data.text().then(msg => exec(msg));
-                return;
-            }
-            // Process ArrayBuffer
-            exec(new TextDecoder().decode(ev.data));
-        };
-    };
-
-    let ondisconnected = function () {
-        console.debug("disconnected");
-        if (onclose) onclose();
-    };
-
     return {
         /**
          * Connect to Teonet WebRTC server
@@ -130,6 +93,46 @@ function teoweb() {
                     that.connect(addr, login, server);
                 }, "3000");
             };
+
+            // On connected to WebRTC server
+            let onconnected = function (_, dc) {
+                console.debug("dc connected");
+                dc.onopen = () => {
+                    console.debug("dc open");
+                    if (onopen) onopen();
+                };
+                dc.onclose = () => {
+                    console.debug("dc close");
+                    if (onclose) onclose(true);
+                };
+                dc.onmessage = (ev) => {
+                    // The ev.data got bytes array, so convert it to string and pare to
+                    // gw object. Then base64 decode gw.data to string
+                    // console.debug(ev.data);
+
+                    let exec = function (msg) {
+                        console.debug("dc got answer:", msg);
+                        let gw = JSON.parse(msg);
+                        const data = atob(gw.data);
+                        m.execAll(gw, data);
+                    }
+
+                    // Process Blob
+                    if (ev.data instanceof Blob) {
+                        ev.data.text().then(msg => exec(msg));
+                        return;
+                    }
+                    // Process ArrayBuffer
+                    exec(new TextDecoder().decode(ev.data));
+                };
+            };
+
+            // On disconnected from WebRTC server
+            let ondisconnected = function () {
+                console.debug("disconnected");
+                if (onclose) onclose();
+            };
+
 
             // Send signal to signal server
             let sendSignal = function (signal) {
