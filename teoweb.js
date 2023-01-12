@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.0.28";
+const version = "0.0.29";
 
 /**
  * Create teoweb object
@@ -55,6 +55,7 @@ function teoweb() {
     let rtc_id = 0;
     let onopen = null;
     let onclose = null;
+    let connected = false;
 
     return {
         /**
@@ -100,10 +101,12 @@ function teoweb() {
                 dc.onopen = () => {
                     console.debug("dc open");
                     if (onopen) onopen();
+                    connected = true;
                 };
                 dc.onclose = () => {
                     console.debug("dc close");
                     if (onclose) onclose(true);
+                    connected = false;
                 };
                 dc.onmessage = (ev) => {
                     // The ev.data got bytes array, so convert it to string and pare to
@@ -252,6 +255,7 @@ function teoweb() {
                             break;
                         case "disconnected":
                             ondisconnected(server, dc);
+                            connected = false;
                             that.dc = null;
                             dc.close();
                             reconnect();
@@ -337,8 +341,23 @@ function teoweb() {
 
         /** Return true if we are connected to WebRTC data channel now */
         connected() {
-            return dc !== null;
-        }
+            return this.dc !== null && connected;
+        },
+
+        /** 
+         * Waits for the data channel to be connected and calls the function f
+         * @param {()=>void} f function called when the data channel is connected
+         * 
+        */
+        whenConnected(f) {
+            if (this.connected()) {
+                f();
+                return;
+            }
+            setTimeout(() => {
+                this.whenConnected(f);
+            }, "5");
+        },
     }
 };
 
