@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.0.29";
+const version = "0.0.30";
 
 /**
  * Create teoweb object
@@ -358,6 +358,10 @@ function teoweb() {
                 this.whenConnected(f);
             }, "5");
         },
+
+        /** Users field to save authentication token. Used on client part to 
+         * save some unical values */
+        token: null,
     }
 };
 
