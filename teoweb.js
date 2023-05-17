@@ -114,7 +114,8 @@ function teoweb() {
                     // console.debug(ev.data);
 
                     let exec = function (msg) {
-                        console.debug("dc got answer:", msg);
+                        let obj = JSON.parse(msg);
+                        console.debug("dc.got answer command:", obj.command + ",", "data_length:", obj.data == null ? 0 : obj.data.length);
                         let gw = JSON.parse(msg);
                         const data = atob(gw.data);
                         m.execAll(gw, data);
@@ -298,7 +299,8 @@ function teoweb() {
         /** Send message to WebRTC server */
         send: function (msg) {
             if (this.dc) {
-                console.debug("dc.send msg:", msg);
+                let obj = JSON.parse(msg);
+                console.debug("dc.send command:", obj.command + ",", "data_length:", obj.data == null ? 0 : obj.data.length);
                 this.dc.send(msg);
             } else {
                 console.debug("dc.send error, dc does not exists");
