@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.0.30";
+const version = "0.0.32";
 
 /**
  * Create teoweb object
@@ -116,9 +116,11 @@ function teoweb() {
                     let exec = function (msg) {
                         let obj = JSON.parse(msg);
                         console.debug("dc.got answer command:", obj.command + ",", "data_length:", obj.data == null ? 0 : obj.data.length);
-                        let gw = JSON.parse(msg);
-                        const data = atob(gw.data);
-                        m.execAll(gw, data);
+                        let data = null;
+                        if (obj.data) {
+                            data = atob(obj.data);
+                        }
+                        m.execAll(obj, data);
                     }
 
                     // Process Blob
