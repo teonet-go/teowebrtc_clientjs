@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.0.32";
+const version = "0.0.33";
 
 /**
  * Create teoweb object
@@ -121,6 +121,7 @@ function teoweb() {
                             data = atob(obj.data);
                         }
                         m.execAll(obj, data);
+
                     }
 
                     // Process Blob
@@ -302,7 +303,9 @@ function teoweb() {
         send: function (msg) {
             if (this.dc) {
                 let obj = JSON.parse(msg);
-                console.debug("dc.send command:", obj.command + ",", "data_length:", obj.data == null ? 0 : obj.data.length);
+                console.debug("dc.send command:", obj.command + ",",
+                    "data_length:", obj.data == null ? 0 : obj.data.length, obj,
+                );
                 this.dc.send(msg);
             } else {
                 console.debug("dc.send error, dc does not exists");
@@ -346,6 +349,13 @@ function teoweb() {
         /** Return true if we are connected to WebRTC data channel now */
         connected() {
             return this.dc !== null && connected;
+        },
+
+        /** Close WebRTC data channel if connected */
+        close() {
+            if (this.connected()) {
+                this.dc.close();
+            }
         },
 
         /** 
