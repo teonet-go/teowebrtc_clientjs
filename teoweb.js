@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.0.33";
+const version = "0.0.34";
 
 /**
  * Create teoweb object
@@ -303,10 +303,12 @@ function teoweb() {
         send: function (msg) {
             if (this.dc) {
                 let obj = JSON.parse(msg);
-                console.debug("dc.send command:", obj.command + ",",
-                    "data_length:", obj.data == null ? 0 : obj.data.length, obj,
-                );
-                this.dc.send(msg);
+                console.debug("dc.send command:", obj.command + ",", "data_length:", obj.data == null ? 0 : obj.data.length, obj);
+                try {
+                    this.dc.send(msg);
+                } catch (err) {
+                    console.debug("dc.send error:", err);
+                }    
             } else {
                 console.debug("dc.send error, dc does not exists");
             }
@@ -355,6 +357,7 @@ function teoweb() {
         close() {
             if (this.connected()) {
                 this.dc.close();
+                this.dc = null;
             }
         },
 
