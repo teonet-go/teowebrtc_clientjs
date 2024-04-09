@@ -107,6 +107,7 @@ function teoweb() {
                     console.debug("dc close");
                     if (onclose) onclose(true);
                     connected = false;
+                    // pc.close();
                 };
                 dc.onmessage = (ev) => {
                     // The ev.data got bytes array, so convert it to string and pare to
@@ -121,7 +122,6 @@ function teoweb() {
                             data = atob(obj.data);
                         }
                         m.execAll(obj, data);
-
                     }
 
                     // Process Blob
@@ -171,6 +171,7 @@ function teoweb() {
                 // on websocket close
                 ws.onclose = function (ev) {
                     console.debug("ws.onclose");
+                    // ws = null;
                 }
 
                 // on websocket message
