@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.0.34";
+const version = "0.0.35";
 
 /**
  * Create teoweb object
@@ -57,25 +57,27 @@ function teoweb() {
     let onclose = null;
     let connected = false;
 
+    // Signal and WebRTC objects
+    let ws;
+    let pc;
+
     return {
+
         /**
          * Connect to Teonet WebRTC server
          * 
          * @param {string} addr the WebRTC signal server address
          * @param {string} login this web application name
          * @param {string} server server name
+         * @param {bool} auto reconnect when connection to server is lost
          */
-        connect: function (addr, login, server) {
+        connect: function (addr, login, server, autoReconnect = true) {
 
             console.debug("teoweb.connect started ver. " + version);
 
             let that = this;
             let processWebrtc;
             let startTime = Date.now();
-
-            // Signal and WebRTC objects
-            let ws;
-            let pc;
 
             // Close signal server ws connection when local and remote ice 
             // candidate are done
@@ -97,17 +99,17 @@ function teoweb() {
 
             // On connected to WebRTC server
             let onconnected = function (_, dc) {
-                console.debug("dc connected");
+                console.debug("onconnected");
                 dc.onopen = () => {
-                    console.debug("dc open");
+                    console.debug("dc.onopen");
                     if (onopen) onopen();
                     connected = true;
                 };
                 dc.onclose = () => {
-                    console.debug("dc close");
+                    console.debug("dc.onclose");
                     if (onclose) onclose(true);
                     connected = false;
-                    // pc.close();
+                    pc.close();
                 };
                 dc.onmessage = (ev) => {
                     // The ev.data got bytes array, so convert it to string and pare to
@@ -136,7 +138,7 @@ function teoweb() {
 
             // On disconnected from WebRTC server
             let ondisconnected = function () {
-                console.debug("disconnected");
+                console.debug("ondisconnected");
                 if (onclose) onclose();
             };
 
@@ -171,7 +173,6 @@ function teoweb() {
                 // on websocket close
                 ws.onclose = function (ev) {
                     console.debug("ws.onclose");
-                    // ws = null;
                 }
 
                 // on websocket message
@@ -263,7 +264,9 @@ function teoweb() {
                             connected = false;
                             that.dc = null;
                             dc.close();
-                            reconnect();
+                            if (autoReconnect) {
+                                reconnect();
+                            }
                             break;
                     }
                 };
@@ -309,10 +312,10 @@ function teoweb() {
                     this.dc.send(msg);
                 } catch (err) {
                     console.debug("dc.send error:", err);
-                }    
-            } else {
-                console.debug("dc.send error, dc does not exists");
+                }
+                return;
             }
+            console.debug("dc.send error, dc does not exists");
         },
 
         /** Send request with command and data to WebRTC server */
