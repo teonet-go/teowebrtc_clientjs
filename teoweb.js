@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.0.35";
+const version = "0.0.36";
 
 /**
  * Create teoweb object
@@ -360,6 +360,7 @@ function teoweb() {
         /** Close WebRTC data channel if connected */
         close() {
             if (this.connected()) {
+                m.delAll();
                 this.dc.close();
                 this.dc = null;
             }
