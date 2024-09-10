@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.0.37";
+const version = "0.0.38";
 
 /**
  * Create teoweb object
@@ -116,12 +116,22 @@ function teoweb() {
                     // gw object. Then base64 decode gw.data to string
                     // console.debug(ev.data);
 
+                    let atob_utf8 = function (value) {
+                        const value_latin1 = atob(value);
+                        return new TextDecoder('utf-8').decode(
+                            Uint8Array.from(
+                                { length: value_latin1.length },
+                                (element, index) => value_latin1.charCodeAt(index)
+                            )
+                        )
+                    }
+
                     let exec = function (msg) {
                         let obj = JSON.parse(msg);
                         console.debug("dc.got answer command:", obj.command + ",", "data_length:", obj.data == null ? 0 : obj.data.length);
                         let data = null;
                         if (obj.data) {
-                            data = atob(obj.data);
+                            data = atob_utf8(obj.data);
                         }
                         m.execAll(obj, data);
                     }
@@ -320,9 +330,19 @@ function teoweb() {
 
         /** Send request with command and data to WebRTC server */
         sendCmd: function (cmd, cmdData) {
+
+            let btoa_utf8 = function (value) {
+                return btoa(
+                    String.fromCharCode(
+                        ...new TextEncoder('utf-8')
+                               .encode(value)
+                    )
+                );
+            }
+
             let data = null;
             if (cmdData) {
-                data = btoa(cmdData);
+                data = btoa_utf8(cmdData);
             }
             let request = {
                 id: rtc_id++,
