@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.0.38";
+const version = "0.0.39";
 
 /**
  * Create teoweb object
@@ -110,6 +110,9 @@ function teoweb() {
                     if (onclose) onclose(true);
                     connected = false;
                     pc.close();
+                    if (autoReconnect) {
+                        reconnect();
+                    }
                 };
                 dc.onmessage = (ev) => {
                     // The ev.data got bytes array, so convert it to string and pare to
