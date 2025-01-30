@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.0.39";
+const version = "0.0.40";
 
 /**
  * Create teoweb object
@@ -159,7 +159,14 @@ function teoweb() {
             // Send signal to signal server
             let sendSignal = function (signal) {
                 let s = JSON.stringify(signal);
-                ws.send(s)
+                try {
+                    ws.send(s);
+                } catch (e) {
+                    console.debug("send ws signal error:", e);
+                    reconnect();
+                    return;
+                }
+
                 console.debug("send signal:", s)
             };
 
@@ -338,7 +345,7 @@ function teoweb() {
                 return btoa(
                     String.fromCharCode(
                         ...new TextEncoder('utf-8')
-                               .encode(value)
+                            .encode(value)
                     )
                 );
             }
