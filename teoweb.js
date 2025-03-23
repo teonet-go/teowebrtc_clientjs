@@ -1,6 +1,10 @@
 'use strict';
 
-const version = "0.0.40";
+const version = "0.1.0";
+
+// Import TeoProxyClient class and Command enum
+import TeoProxyClient from "./teoproxy.js";
+import { Command } from "./teoproxy.js";
 
 /**
  * Create teoweb object
@@ -8,49 +12,6 @@ const version = "0.0.40";
  */
 function teoweb() {
     const cmdSubscribe = "subscribe";
-
-    // Map for teoweb
-    let m = function mapCreate() {
-        const m = new Map();
-        let key = 0;
-        return {
-            /** Add new element to the map and return key */
-            add: function (f) {
-                m.set(++key, f);
-                return key;
-            },
-
-            /** Delete element from the map by key */
-            del: function (key) {
-                m.delete(key);
-            },
-
-            /** Delete all elements from the map */
-            delAll: function () {
-                m.forEach(function (f, key) {
-                    m.delete(key);
-                });
-            },
-
-            /** Get element from map by key */
-            get: function (key) {
-                return m.get(key);
-            },
-
-            /** Execute function by key from map */
-            exec: function (key, gw, data) {
-                const f = m.get(key);
-                if (f) f(gw, data);
-            },
-
-            /** Execute all functions from map */
-            execAll: function (gw, data) {
-                m.forEach(function (f/* , key */) {
-                    f(gw, data);
-                });
-            }
-        }
-    }();
 
     let rtc_id = 0;
     let onopen = null;
@@ -61,8 +22,70 @@ function teoweb() {
     let ws;
     let pc;
 
-    return {
+    // Map for readers
+    const m = mapCreate();
 
+    // Map for websocket send commands
+    const mp = mapCreate();
+
+    // Common server methods
+    const serverCommon = {
+
+        /** Set on dc open function */
+        onOpen: function (f) {
+            onopen = f;
+        },
+
+        /** Set on dc or webrtc close function */
+        onClose: function (f) {
+            onclose = f;
+        },
+
+        /** Add reader */
+        addReader: function (f) {
+            return m.add(f);
+        },
+
+        /** Remove reader bye key returned from addReader() function */
+        delReader: function (key) {
+            m.del(key);
+        },
+
+        /** Return true if we are connected to WebRTC data channel now */
+        connected() {
+            return this.dc !== null && connected;
+        },
+
+        /** 
+         * Waits for the data channel to be connected and calls the function f
+         * @param {()=>void} f function called when the data channel is connected
+         * 
+        */
+        whenConnected(f) {
+            if (this.connected()) {
+                f();
+                return;
+            }
+            setTimeout(() => {
+                this.whenConnected(f);
+            }, "5");
+        },
+
+        /** Send request with subscribe command to WebRTC server */
+        subscribeCmd: function (cmd) {
+            this.sendCmd(cmdSubscribe, cmd);
+        },
+
+        /** WebRTC or WebSocket datachannel or NULL if not connected */
+        dc: null,
+
+        /** Users field to save authentication token. Used on client part to 
+         * save some unical values */
+        token: null,
+    };
+
+    // WebRTC server methods
+    const serverWebRTC = {
         /**
          * Connect to Teonet WebRTC server
          * 
@@ -313,16 +336,6 @@ function teoweb() {
             processSignal();
         },
 
-        /** Set on dc open function */
-        onOpen: function (f) {
-            onopen = f;
-        },
-
-        /** Set on dc or webrtc close function */
-        onClose: function (f) {
-            onclose = f;
-        },
-
         /** Send message to WebRTC server */
         send: function (msg) {
             if (this.dc) {
@@ -364,31 +377,8 @@ function teoweb() {
             this.send(msg);
         },
 
-        /** Send request with subscribe command to WebRTC server */
-        subscribeCmd: function (cmd) {
-            this.sendCmd(cmdSubscribe, cmd);
-        },
-
-        /** Add reader */
-        addReader: function (f) {
-            return m.add(f);
-        },
-
-        /** Remove reader bye key returned from addReader() function */
-        delReader: function (key) {
-            m.del(key);
-        },
-
-        /** WebRTC datachannel or NULL if not connected */
-        dc: null,
-
-        /** Return true if we are connected to WebRTC data channel now */
-        connected() {
-            return this.dc !== null && connected;
-        },
-
         /** Close WebRTC data channel if connected */
-        close(killreaders = false) {
+        close: function (killreaders = false) {
             if (this.connected()) {
                 if (killreaders) {
                     m.delAll();
@@ -397,25 +387,134 @@ function teoweb() {
                 this.dc = null;
             }
         },
+    };
 
-        /** 
-         * Waits for the data channel to be connected and calls the function f
-         * @param {()=>void} f function called when the data channel is connected
+    // Websocket server methods
+    const serverWebsocket = {
+
+        teo: null,
+        dadmin: "XXXX",
+
+        /**
+         * Connect to Teonet Websocket proxy server
          * 
-        */
-        whenConnected(f) {
-            if (this.connected()) {
-                f();
-                return;
+         * @param {string} addr the WebRTC signal server address
+         * @param {string} login this web application name
+         * @param {string} server server name
+         * @param {bool} auto reconnect when connection to server is lost
+         */
+        connect: function (addr, login, server, autoReconnect = true) {
+            console.debug("teoweb.connect started ver. " + version);
+
+            // Create TeoProxy client object
+            const teo = new TeoProxyClient();
+            this.teo = teo;
+            this.dc = {};
+
+            // Connect to Teonet proxy websocket and Teonet peer api.
+            teo.connect("PROXY_SERVER_NAME", this.dadmin, function () {
+                console.debug("websocket onopen");
+                if (onopen) onopen();
+                connected = true;
+            });
+
+            // On message received from Teonet peer
+            teo.onmessage = (pac) => {
+
+                // Print received packet
+                const logMsg = (pac) => console.debug("got", pac);
+
+                if (pac.cmd == Command.SendTo) {
+
+                    // Get command by id
+                    const gw = mp.get(pac.id)()
+
+                    // Check error in pac.data
+                    if (pac.data.startsWith("error: ")) {
+                        gw.err = pac.data.substring(7);
+                    }
+
+                    // Check empty data
+                    if (pac.data === "") {
+                        pac.data = null;
+                    }
+
+                    logMsg(pac);
+
+                    m.execAll(gw, pac.data);
+                } else {
+                    logMsg(pac);
+                }
             }
-            setTimeout(() => {
-                this.whenConnected(f);
-            }, "5");
         },
 
-        /** Users field to save authentication token. Used on client part to 
-         * save some unical values */
-        token: null,
+        /** Send request with command and data to WebRTC server */
+        sendCmd: function (cmd, data) {
+
+            // Send command
+            // console.debug("websocket sendCmd:", cmd, cmdData);
+            let cmdData = cmd;
+            if (data) {
+                cmdData += "/" + data;
+            }
+            const id = this.teo.cmd.sendTo(this.dadmin, "msg", cmdData);
+
+            // Save to send packets map
+            mp.add(() => {
+                const gw = { command: cmd }
+                return gw;
+            }, id);
+        },
+    };
+
+    // Use WebRTC or Websocket server
+    const useWebRTC = false;
+    if (useWebRTC) {
+        return Object.assign({}, serverWebRTC, serverCommon);
+    }
+    return Object.assign({}, serverWebsocket, serverCommon);
+};
+
+// Map for teoweb
+function mapCreate() {
+    const m = new Map();
+    let key = 0;
+    return {
+        /** Add new element to the map and return key */
+        add: function (f, k = ++key) {
+            m.set(k, f);
+            return k;
+        },
+
+        /** Delete element from the map by key */
+        del: function (key) {
+            m.delete(key);
+        },
+
+        /** Delete all elements from the map */
+        delAll: function () {
+            m.forEach(function (f, key) {
+                m.delete(key);
+            });
+        },
+
+        /** Get element from map by key */
+        get: function (key) {
+            return m.get(key);
+        },
+
+        /** Execute function by key from map */
+        exec: function (key, gw, data) {
+            const f = m.get(key);
+            if (f) f(gw, data);
+        },
+
+        /** Execute all functions from map */
+        execAll: function (gw, data) {
+            m.forEach(function (f/* , key */) {
+                f(gw, data);
+            });
+        }
     }
 };
 
