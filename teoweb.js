@@ -10,7 +10,7 @@ import { Command } from "./teoproxy.js";
  * Create teoweb object
  *
  */
-function teoweb() {
+function teoweb(connectType = "webrtc") {
     const cmdSubscribe = "subscribe";
 
     let rtc_id = 0;
@@ -30,6 +30,8 @@ function teoweb() {
 
     // Common server methods
     const serverCommon = {
+
+        connectType: connectType,
 
         /** Set on dc open function */
         onOpen: function (f) {
@@ -96,7 +98,7 @@ function teoweb() {
          */
         connect: function (addr, login, server, autoReconnect = true) {
 
-            console.debug("teoweb.connect started ver. " + version);
+            console.debug("webrtc teoweb.connect started ver. " + version);
 
             let that = this;
             let processWebrtc;
@@ -393,7 +395,8 @@ function teoweb() {
     const serverWebsocket = {
 
         teo: null,
-        dadmin: "XXXX",
+        server: "",
+        login: "",
 
         /**
          * Connect to Teonet Websocket proxy server
@@ -404,15 +407,18 @@ function teoweb() {
          * @param {bool} auto reconnect when connection to server is lost
          */
         connect: function (addr, login, server, autoReconnect = true) {
-            console.debug("teoweb.connect started ver. " + version);
+
+            console.debug("websocket teoweb.connect started ver. " + version, addr, server);
 
             // Create TeoProxy client object
             const teo = new TeoProxyClient();
+            this.server = server;
+            this.login = login;
             this.teo = teo;
             this.dc = {};
 
             // Connect to Teonet proxy websocket and Teonet peer api.
-            teo.connect("PROXY_SERVER_NAME", this.dadmin, function () {
+            teo.connect(addr, server, function () {
                 console.debug("websocket onopen");
                 if (onopen) onopen();
                 connected = true;
@@ -453,11 +459,11 @@ function teoweb() {
 
             // Send command
             // console.debug("websocket sendCmd:", cmd, cmdData);
-            let cmdData = cmd;
+            let cmdData = this.login + "," + cmd;
             if (data) {
                 cmdData += "/" + data;
             }
-            const id = this.teo.cmd.sendTo(this.dadmin, "msg", cmdData);
+            const id = this.teo.cmd.sendTo(this.server, "cmd", cmdData);
 
             // Save to send packets map
             mp.add(() => {
@@ -468,8 +474,7 @@ function teoweb() {
     };
 
     // Use WebRTC or Websocket server
-    const useWebRTC = false;
-    if (useWebRTC) {
+    if (connectType == "webrtc") {
         return Object.assign({}, serverWebRTC, serverCommon);
     }
     return Object.assign({}, serverWebsocket, serverCommon);

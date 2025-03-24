@@ -38,7 +38,7 @@ class TeoProxyClient {
 
     // Connect to Teonet proxy websocket server.
     connectWs(name, onopen = null) {
-        let url = "wss://" + name + "/ws";
+        const url = name;
         console.debug("connect to websocket:", url)
         this.socket = new WebSocket(url);
 
