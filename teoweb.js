@@ -424,6 +424,15 @@ function teoweb(connectType = "webrtc") {
                 connected = true;
             });
 
+            teo.onclose = () => {
+                console.debug("websocket onclose");
+                if (onclose) onclose(true);
+                connected = false;
+                if (autoReconnect) {
+                    // reconnect();
+                }
+            }
+
             // On message received from Teonet peer
             teo.onmessage = (pac) => {
 
