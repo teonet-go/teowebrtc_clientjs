@@ -442,7 +442,12 @@ function teoweb(connectType = "webrtc") {
                 if (pac.cmd == Command.SendTo) {
 
                     // Get command by id
-                    const gw = mp.get(pac.id)()
+                    const cmd = mp.get(pac.id)
+                    if (!cmd) {
+                        console.debug("cmd not found, id:", pac.id);
+                        return;
+                    }
+                    const gw = cmd()
 
                     // Check error in pac.data
                     if (pac.data.startsWith("error: ")) {
