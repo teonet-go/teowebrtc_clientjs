@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.1.0";
+const version = "0.1.2";
 
 // Import TeoProxyClient class and Command enum
 import TeoProxyClient from "./teoproxy.js";
