@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.1.2";
+const version = "0.1.3";
 
 // Import TeoProxyClient class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -464,6 +464,7 @@ function teoweb(connectType = "webrtc") {
                         gw = cmd();
                         mp.del(pac.id);
                     }
+                    gw.err = pac.err;
 
                     // Check error in data
                     if (data && data.startsWith("error: ")) {
