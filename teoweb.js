@@ -439,29 +439,45 @@ function teoweb(connectType = "webrtc") {
                 // Print received packet
                 const logMsg = (pac) => console.debug("got", pac);
 
+                // SendTo answers only
                 if (pac.cmd == Command.SendTo) {
-
-                    // Get command by id
+                    // Get command by packet id
+                    let gw = {};
+                    let data = pac.data;
                     const cmd = mp.get(pac.id)
                     if (!cmd) {
-                        console.debug("cmd not found, id:", pac.id);
-                        return;
-                    }
-                    const gw = cmd()
+                        // Process subscribed commands
 
-                    // Check error in pac.data
-                    if (pac.data.startsWith("error: ")) {
-                        gw.err = pac.data.substring(7);
+                        // Get command and data from packet data
+                        const dataArray = pac.data.split("/");
+                        const cmdData = dataArray[dataArray.length - 1];
+                        const cmdArgs = dataArray.slice(0, dataArray.length - 1).join("/");
+                        
+                        // Set command and data
+                        gw.command = cmdArgs;
+                        data = cmdData;
+
+                    } else {
+                        // Process answer command
+
+                        // Set command and use pac.data as data
+                        gw = cmd();
+                        mp.del(pac.id);
+                    }
+
+                    // Check error in data
+                    if (data && data.startsWith("error: ")) {
+                        gw.err = data.substring(7);
                     }
 
                     // Check empty data
-                    if (pac.data === "") {
-                        pac.data = null;
+                    if (data === "") {
+                        data = null;
                     }
 
                     logMsg(pac);
 
-                    m.execAll(gw, pac.data);
+                    m.execAll(gw, data);
                 } else {
                     logMsg(pac);
                 }
