@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.1.3";
+const version = "0.1.4";
 
 // Import TeoProxyClient class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -115,7 +115,7 @@ function teoweb(connectType = "webrtc") {
             }
 
             // Reconnect to Signal and restart WebRTC connection
-            let reconnect = function () {
+            const reconnect = function () {
                 setTimeout(() => {
                     console.debug("reconnect");
                     that.connect(addr, login, server);
@@ -410,12 +410,22 @@ function teoweb(connectType = "webrtc") {
 
             console.debug("websocket teoweb.connect started ver. " + version, addr, server);
 
+            let that = this;
+
             // Create TeoProxy client object
             const teo = new TeoProxyClient();
             this.server = server;
             this.login = login;
             this.teo = teo;
             this.dc = {};
+
+            // Reconnect to Signal and restart WebRTC connection
+            const reconnect = function () {
+                setTimeout(() => {
+                    console.debug("reconnect");
+                    that.connect(addr, login, server);
+                }, "3000");
+            };
 
             // Connect to Teonet proxy websocket and Teonet peer api.
             teo.connect(addr, server, function () {
@@ -429,7 +439,7 @@ function teoweb(connectType = "webrtc") {
                 if (onclose) onclose(true);
                 connected = false;
                 if (autoReconnect) {
-                    // reconnect();
+                    reconnect();
                 }
             }
 
