@@ -61,10 +61,17 @@ class TeoProxyClient {
 
     // Send packet to Teonet proxy websocket server.
     send(pac) {
+        // Skip if socket is not connected
         if (!this.socket) {
             return;
         }
-        this.socket.send(pac.encode());
+
+        // Send packet to ws safely
+        try {
+            this.socket.send(pac.encode());
+        } catch (e) {
+            console.error(e);
+        }
     }
 
     // Make commands

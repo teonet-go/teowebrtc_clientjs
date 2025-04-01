@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.1.5";
+const version = "0.1.6";
 
 // Import TeoProxyClient class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -429,6 +429,8 @@ function teoweb(connectType = "webrtc") {
 
             // Reconnect to Signal and restart WebRTC connection
             const reconnect = function () {
+                // teo.socket && teo.socket.close();
+                teo.socket = null;
                 setTimeout(() => {
                     console.debug("reconnect");
                     that.connect(addr, login, server);
@@ -438,15 +440,17 @@ function teoweb(connectType = "webrtc") {
             // Connect to Teonet proxy websocket and Teonet peer api.
             teo.connect(addr, server, function () {
                 console.debug("websocket onopen");
-                console.debug("time since start:", Date.now() - startTime, "ms");
-                if (onopen) onopen();
-                connected = true;
             });
 
+            // On connection closed
             teo.onclose = () => {
                 console.debug("websocket onclose");
+
+                // Call onclose callback
                 if (onclose) onclose(true);
                 connected = false;
+
+                // Reconnect
                 if (autoReconnect) {
                     reconnect();
                 }
@@ -459,19 +463,41 @@ function teoweb(connectType = "webrtc") {
                 const logMsg = (pac, gw) => console.debug(
                     "ws.got  command:", (gw ? gw.command : "") + ",",
                     "data_length:", (pac.data == null ? 0 : pac.data.length) + ",",
-                    "id:", pac.id,
+                    "id:", pac.id + (pac.err ? ", error: " + pac.err : ""),
                 );
 
-                // SendTo answers only
-                if (pac.cmd == Command.SendTo) {
-                    // Get command by packet id
-                    let gw = {};
-                    let data = pac.data;
-                    const cmd = mp.get(pac.id)
-                    if (!cmd) {
-                        // Process subscribed commands
+                // Got Connect answer with success
+                if (pac.cmd == Command.ConnectTo && !pac.err) {
+                    console.debug(pac.data);
+                    console.debug("time since start:", Date.now() - startTime, "ms");
+                    if (onopen) onopen();
+                    connected = true;
+                    return;
+                }
 
-                        // Get command and data from packet data
+                // Got Connect answer with error
+                if (pac.cmd == Command.ConnectTo && pac.err) {
+                    console.error(pac.err);
+                    teo.socket && teo.socket.close();
+                    return;
+                }
+
+                // Got Disconnect from teoproxy with disconnected peer in data
+                if (pac.cmd == Command.Disconnect) {
+                    console.debug("teonet peer", pac.data, "disconnected");
+                    teo.socket && teo.socket.close();
+                    return;
+                }
+
+                // Get command by packet id
+                let gw = {};
+                let data = pac.data;
+                const cmd = mp.get(pac.id)
+                if (!cmd) {
+                    // Process subscribed commands
+
+                    // Get command and data from packet data
+                    if (pac.data) {
                         const dataArray = pac.data.split("/");
                         const cmdData = dataArray[dataArray.length - 1];
                         const cmdArgs = dataArray.slice(0, dataArray.length - 1).join("/");
@@ -479,31 +505,35 @@ function teoweb(connectType = "webrtc") {
                         // Set command and data
                         gw.command = cmdArgs;
                         data = cmdData;
-
-                    } else {
-                        // Process answer command
-
-                        // Set command and use pac.data as data
-                        gw = cmd();
-                        mp.del(pac.id);
-                    }
-                    gw.err = pac.err;
-
-                    // Check error in data
-                    if (data && data.startsWith("error: ")) {
-                        gw.err = data.substring(7);
                     }
 
-                    // Check empty data
-                    if (data === "") {
-                        data = null;
-                    }
-
-                    logMsg(pac, gw);
-
-                    m.execAll(gw, data);
                 } else {
-                    logMsg(pac);
+                    // Process answer command
+
+                    // Set command and use pac.data as data
+                    gw = cmd();
+                    mp.del(pac.id);
+                }
+
+                // Set error from packet
+                gw.err = pac.err;
+
+                // Check error in data
+                if (data && data.startsWith("error: ")) {
+                    gw.err = data.substring(7);
+                }
+
+                // Check empty data
+                if (data === "") {
+                    data = null;
+                }
+
+                // Print received packet log message
+                logMsg(pac, gw);
+
+                // Got SendTo answers, exec commands
+                if (pac.cmd == Command.SendTo) {
+                    m.execAll(gw, data);
                 }
             }
         },
