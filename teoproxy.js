@@ -39,7 +39,7 @@ class TeoProxyClient {
     // Connect to Teonet proxy websocket server.
     connectWs(name, onopen = null) {
         const url = name;
-        console.debug("connect to websocket:", url)
+        console.debug("connect to:", url)
         this.socket = new WebSocket(url);
 
         this.socket.onopen = function (evt) {
@@ -64,7 +64,6 @@ class TeoProxyClient {
         if (!this.socket) {
             return;
         }
-        console.debug("send", pac);
         this.socket.send(pac.encode());
     }
 
@@ -113,7 +112,7 @@ class TeoProxyClient {
                 let pac = new Packet(Command.Sream);
                 pac.data = name + "," + stream;
                 that.send(pac);
-             }
+            }
         }
     }
 

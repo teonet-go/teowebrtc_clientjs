@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.1.4";
+const version = "0.1.5";
 
 // Import TeoProxyClient class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -100,9 +100,9 @@ function teoweb(connectType = "webrtc") {
 
             console.debug("webrtc teoweb.connect started ver. " + version);
 
-            let that = this;
+            const that = this;
             let processWebrtc;
-            let startTime = Date.now();
+            const startTime = Date.now();
 
             // Close signal server ws connection when local and remote ice 
             // candidate are done
@@ -156,7 +156,11 @@ function teoweb(connectType = "webrtc") {
 
                     let exec = function (msg) {
                         let obj = JSON.parse(msg);
-                        console.debug("dc.got answer command:", obj.command + ",", "data_length:", obj.data == null ? 0 : obj.data.length);
+                        console.debug(
+                            "dc.got  command:", obj.command + ",",
+                            "data_length:", (obj.data == null ? 0 : obj.data.length) + ",",
+                            "id:", obj.id,
+                        );
                         let data = null;
                         if (obj.data) {
                             data = atob_utf8(obj.data);
@@ -299,8 +303,7 @@ function teoweb(connectType = "webrtc") {
                     console.debug("ICE connection state change:", pc.iceConnectionState);
                     switch (pc.iceConnectionState) {
                         case "connected":
-                            let endTime = Date.now()
-                            console.debug("time since start:", endTime - startTime, "ms");
+                            console.debug("time since start:", Date.now() - startTime, "ms");
                             that.dc = dc;
                             onconnected(server, dc);
                             break;
@@ -342,9 +345,13 @@ function teoweb(connectType = "webrtc") {
         send: function (msg) {
             if (this.dc) {
                 let obj = JSON.parse(msg);
-                console.debug("dc.send command:", obj.command + ",", "data_length:", obj.data == null ? 0 : obj.data.length, obj);
                 try {
                     this.dc.send(msg);
+                    console.debug(
+                        "dc.send command:", obj.command + ",",
+                        "data_length:", (obj.data == null ? 0 : obj.data.length) + ",",
+                        "id:", obj.id,
+                    );
                 } catch (err) {
                     console.debug("dc.send error:", err);
                 }
@@ -408,9 +415,10 @@ function teoweb(connectType = "webrtc") {
          */
         connect: function (addr, login, server, autoReconnect = true) {
 
-            console.debug("websocket teoweb.connect started ver. " + version, addr, server);
+            console.debug("websocket teoweb.connect started ver. " + version);
 
-            let that = this;
+            const that = this;
+            const startTime = Date.now();
 
             // Create TeoProxy client object
             const teo = new TeoProxyClient();
@@ -430,6 +438,7 @@ function teoweb(connectType = "webrtc") {
             // Connect to Teonet proxy websocket and Teonet peer api.
             teo.connect(addr, server, function () {
                 console.debug("websocket onopen");
+                console.debug("time since start:", Date.now() - startTime, "ms");
                 if (onopen) onopen();
                 connected = true;
             });
@@ -447,7 +456,11 @@ function teoweb(connectType = "webrtc") {
             teo.onmessage = (pac) => {
 
                 // Print received packet
-                const logMsg = (pac) => console.debug("got", pac);
+                const logMsg = (pac, gw) => console.debug(
+                    "ws.got  command:", (gw ? gw.command : "") + ",",
+                    "data_length:", (pac.data == null ? 0 : pac.data.length) + ",",
+                    "id:", pac.id,
+                );
 
                 // SendTo answers only
                 if (pac.cmd == Command.SendTo) {
@@ -462,7 +475,7 @@ function teoweb(connectType = "webrtc") {
                         const dataArray = pac.data.split("/");
                         const cmdData = dataArray[dataArray.length - 1];
                         const cmdArgs = dataArray.slice(0, dataArray.length - 1).join("/");
-                        
+
                         // Set command and data
                         gw.command = cmdArgs;
                         data = cmdData;
@@ -486,7 +499,7 @@ function teoweb(connectType = "webrtc") {
                         data = null;
                     }
 
-                    logMsg(pac);
+                    logMsg(pac, gw);
 
                     m.execAll(gw, data);
                 } else {
@@ -505,6 +518,13 @@ function teoweb(connectType = "webrtc") {
                 cmdData += "/" + data;
             }
             const id = this.teo.cmd.sendTo(this.server, "cmd", cmdData);
+
+            // Print console debug message
+            console.debug(
+                "ws.send command:", cmd + ",",
+                "data_length:", (data == null ? 0 : data.length) + ",",
+                "id:", id,
+            );
 
             // Save to send packets map
             mp.add(() => {
