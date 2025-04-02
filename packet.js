@@ -12,7 +12,12 @@ export class Packet {
 
     // Marshal packet into uint8 array.
     marshal() {
-        const len = !this.err ? (this.data ? this.data.length : 0) : this.err.length;
+        const encoder = new TextEncoder();
+        const byteLength = this.data ? encoder.encode(this.data).length : 0;
+
+        const len = !this.err ? byteLength : this.err.length;
+
+        // Create buffer
         const data = new Uint8Array(4 + 1 + len + 1);
 
         // Packet ID
@@ -27,13 +32,13 @@ export class Packet {
         // Data or error
         if (this.err !== null) {
             data[4] |= 0x80;
-            data.set(new TextEncoder().encode(this.err), 5);
+            data.set(encoder.encode(this.err), 5);
         } else {
             if (this.data) {
                 let d = this.data;
                 // String to Uint8Array
                 if (typeof this.data === "string") {
-                    d = new TextEncoder().encode(this.data);
+                    d = encoder.encode(this.data);
                 }
                 data.set(d, 5);
             }
