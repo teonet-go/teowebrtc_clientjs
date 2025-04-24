@@ -180,6 +180,8 @@ function teoweb(connectType = "webrtc") {
             // On disconnected from WebRTC server
             const ondisconnected = function (_, dc) {
                 console.debug("ondisconnected");
+                that.dc.close();
+                that.dc = null;
                 dc.onclose();
             };
 
