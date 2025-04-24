@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.1.7";
+const version = "0.1.10";
 
 // Import TeoProxyClient class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -116,7 +116,12 @@ function teoweb(connectType = "webrtc") {
 
             // Reconnect to Signal and restart WebRTC connection
             const reconnect = function () {
+                // Set connected to false
+                connected = false;
+
+                // Reconnect after 3 seconds
                 setTimeout(() => {
+                    if (connected) return;
                     console.debug("reconnect");
                     that.connect(addr, login, server);
                 }, "3000");
@@ -125,20 +130,22 @@ function teoweb(connectType = "webrtc") {
             // On connected to WebRTC server
             let onconnected = function (_, dc) {
                 console.debug("onconnected");
+
                 dc.onopen = () => {
                     console.debug("dc.onopen");
                     if (onopen) onopen();
                     connected = true;
                 };
-                dc.onclose = () => {
-                    console.debug("dc.onclose");
+
+                dc.onclose = (event) => {
+                    console.debug("dc.onclose, event:", event);
+                    that.dc = null;
+                    dc.close();
+
                     if (onclose) onclose(true);
-                    connected = false;
-                    pc.close();
-                    if (autoReconnect) {
-                        reconnect();
-                    }
+                    if (autoReconnect) reconnect();
                 };
+
                 dc.onmessage = (ev) => {
                     // The ev.data got bytes array, so convert it to string and pare to
                     // gw object. Then base64 decode gw.data to string
@@ -177,13 +184,6 @@ function teoweb(connectType = "webrtc") {
                     exec(new TextDecoder().decode(ev.data));
                 };
             };
-
-            // On disconnected from WebRTC server
-            let ondisconnected = function () {
-                console.debug("ondisconnected");
-                if (onclose) onclose();
-            };
-
 
             // Send signal to signal server
             let sendSignal = function (signal) {
@@ -275,7 +275,7 @@ function teoweb(connectType = "webrtc") {
                     iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
                 };
                 pc = new RTCPeerConnection(configuration);
-                let dc = pc.createDataChannel("teo");
+                const dc = pc.createDataChannel("teo");
 
                 // Show signaling state
                 pc.onsignalingstatechange = function (ev) {
@@ -302,19 +302,18 @@ function teoweb(connectType = "webrtc") {
                 pc.oniceconnectionstatechange = function (ev) {
                     console.debug("ICE connection state change:", pc.iceConnectionState);
                     switch (pc.iceConnectionState) {
+
+                        // When the connection is established
                         case "connected":
                             console.debug("time since start:", Date.now() - startTime, "ms");
                             that.dc = dc;
                             onconnected(server, dc);
                             break;
+
+                        // When the connection is closed
                         case "disconnected":
-                            ondisconnected(server, dc);
-                            connected = false;
-                            that.dc = null;
-                            dc.close();
-                            if (autoReconnect) {
-                                reconnect();
-                            }
+                            pc.close(); // The close pc call dc.onclose and reconnect
+                            pc = null; // Kill pc object and all links to it
                             break;
                     }
                 };
@@ -388,12 +387,14 @@ function teoweb(connectType = "webrtc") {
 
         /** Close WebRTC data channel if connected */
         close: function (killreaders = false) {
+            console.debug("pc.close");
             if (this.connected()) {
                 if (killreaders) {
                     m.delAll();
                 }
                 this.dc.close();
                 this.dc = null;
+                connected = false;
             }
         },
     };
@@ -432,7 +433,7 @@ function teoweb(connectType = "webrtc") {
                 // teo.socket && teo.socket.close();
                 teo.socket = null;
                 setTimeout(() => {
-                    console.debug("reconnect");
+                    console.debug("reconnect(2)");
                     that.connect(addr, login, server);
                 }, "3000");
             };
@@ -451,9 +452,7 @@ function teoweb(connectType = "webrtc") {
                 connected = false;
 
                 // Reconnect
-                if (autoReconnect) {
-                    reconnect();
-                }
+                if (autoReconnect) reconnect();
             }
 
             // On message received from Teonet peer
