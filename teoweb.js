@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.1.7";
+const version = "0.1.8";
 
 // Import TeoProxyClient class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -100,8 +100,8 @@ function teoweb(connectType = "webrtc") {
 
             console.debug("webrtc teoweb.connect started ver. " + version);
 
-            const that = this;
             let processWebrtc;
+            const that = this;
             const startTime = Date.now();
 
             // Close signal server ws connection when local and remote ice 
@@ -122,8 +122,8 @@ function teoweb(connectType = "webrtc") {
                 }, "3000");
             };
 
-            // On connected to WebRTC server
-            let onconnected = function (_, dc) {
+            // On connected to WebRTC data channel
+            const onconnected = function (_, dc) {
                 console.debug("onconnected");
                 dc.onopen = () => {
                     console.debug("dc.onopen");
@@ -134,7 +134,6 @@ function teoweb(connectType = "webrtc") {
                     console.debug("dc.onclose");
                     if (onclose) onclose(true);
                     connected = false;
-                    pc.close();
                     if (autoReconnect) {
                         reconnect();
                     }
@@ -179,14 +178,14 @@ function teoweb(connectType = "webrtc") {
             };
 
             // On disconnected from WebRTC server
-            let ondisconnected = function () {
+            const ondisconnected = function () {
                 console.debug("ondisconnected");
                 if (onclose) onclose();
             };
 
 
             // Send signal to signal server
-            let sendSignal = function (signal) {
+            const sendSignal = function (signal) {
                 let s = JSON.stringify(signal);
                 try {
                     ws.send(s);
@@ -200,7 +199,7 @@ function teoweb(connectType = "webrtc") {
             };
 
             // Process signal commands
-            let processSignal = function () {
+            const processSignal = function () {
 
                 console.debug("connect to:", addr);
                 ws = new WebSocket(addr);
@@ -309,12 +308,7 @@ function teoweb(connectType = "webrtc") {
                             break;
                         case "disconnected":
                             ondisconnected(server, dc);
-                            connected = false;
                             that.dc = null;
-                            dc.close();
-                            if (autoReconnect) {
-                                reconnect();
-                            }
                             break;
                     }
                 };
@@ -448,7 +442,6 @@ function teoweb(connectType = "webrtc") {
 
                 // Call onclose callback
                 if (onclose) onclose(true);
-                connected = false;
 
                 // Reconnect
                 if (autoReconnect) {
@@ -471,7 +464,6 @@ function teoweb(connectType = "webrtc") {
                     console.debug(pac.data);
                     console.debug("time since start:", Date.now() - startTime, "ms");
                     if (onopen) onopen();
-                    connected = true;
                     return;
                 }
 
