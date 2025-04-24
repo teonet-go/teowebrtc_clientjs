@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.1.8";
+const version = "0.1.9";
 
 // Import TeoProxyClient class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -178,9 +178,9 @@ function teoweb(connectType = "webrtc") {
             };
 
             // On disconnected from WebRTC server
-            const ondisconnected = function () {
+            const ondisconnected = function (_, dc) {
                 console.debug("ondisconnected");
-                if (onclose) onclose();
+                dc.onclose();
             };
 
 
