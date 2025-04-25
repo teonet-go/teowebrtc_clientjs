@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.1.10";
+const version = "0.1.11";
 
 // Import TeoProxyClient class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -128,8 +128,35 @@ function teoweb(connectType = "webrtc") {
             };
 
             // On connected to WebRTC server
-            let onconnected = function (_, dc) {
+            const onconnected = function (_, dc) {
                 console.debug("onconnected");
+
+                // Send dc ping every 3 min
+                const pingTimeout = 3 * 60 * 1000;
+                let lastGetTime = Date.now();
+                let stopCheckPing = false;
+
+                // Check get dc message timeout and send ping if not received
+                const checkPing = function () {
+                    // console.debug("checkPing");
+                    if (stopCheckPing) return;
+
+                    // Check ping after timeout
+                    let checkAfter;
+
+                    // Send ping if not received message for 1 min
+                    if (Date.now() - lastGetTime > pingTimeout) {
+                        // console.debug("sendPing");
+                        that.sendCmd("ping");
+                        checkAfter = pingTimeout;
+                    } else {
+                        checkAfter = pingTimeout - (Date.now() - lastGetTime);
+                    }
+
+                    // Check ping after 1 second
+                    setTimeout(() => { checkPing(); }, checkAfter);
+                };
+                checkPing();
 
                 dc.onopen = () => {
                     console.debug("dc.onopen");
@@ -139,6 +166,7 @@ function teoweb(connectType = "webrtc") {
 
                 dc.onclose = (event) => {
                     console.debug("dc.onclose, event:", event);
+                    stopCheckPing = true;
                     that.dc = null;
                     dc.close();
 
@@ -151,7 +179,10 @@ function teoweb(connectType = "webrtc") {
                     // gw object. Then base64 decode gw.data to string
                     // console.debug(ev.data);
 
-                    let atob_utf8 = function (value) {
+                    // Get last message time
+                    lastGetTime = Date.now();
+
+                    const atob_utf8 = function (value) {
                         const value_latin1 = atob(value);
                         return new TextDecoder('utf-8').decode(
                             Uint8Array.from(
@@ -161,7 +192,7 @@ function teoweb(connectType = "webrtc") {
                         )
                     }
 
-                    let exec = function (msg) {
+                    const exec = function (msg) {
                         let obj = JSON.parse(msg);
                         console.debug(
                             "dc.got  command:", obj.command + ",",
@@ -186,7 +217,7 @@ function teoweb(connectType = "webrtc") {
             };
 
             // Send signal to signal server
-            let sendSignal = function (signal) {
+            const sendSignal = function (signal) {
                 let s = JSON.stringify(signal);
                 try {
                     ws.send(s);
@@ -200,7 +231,7 @@ function teoweb(connectType = "webrtc") {
             };
 
             // Process signal commands
-            let processSignal = function () {
+            const processSignal = function () {
 
                 console.debug("connect to:", addr);
                 ws = new WebSocket(addr);
