@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.1.11";
+const version = "0.1.12";
 
 // Import TeoProxyClient class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -134,19 +134,15 @@ function teoweb(connectType = "webrtc") {
                 // Send dc ping every 3 min
                 const pingTimeout = 3 * 60 * 1000;
                 let lastGetTime = Date.now();
-                let stopCheckPing = false;
+                var timeoutID;
 
                 // Check get dc message timeout and send ping if not received
                 const checkPing = function () {
-                    // console.debug("checkPing");
-                    if (stopCheckPing) return;
-
                     // Check ping after timeout
                     let checkAfter;
 
-                    // Send ping if not received message for 1 min
+                    // Send ping if not received message for 3 min
                     if (Date.now() - lastGetTime > pingTimeout) {
-                        // console.debug("sendPing");
                         that.sendCmd("ping");
                         checkAfter = pingTimeout;
                     } else {
@@ -154,7 +150,7 @@ function teoweb(connectType = "webrtc") {
                     }
 
                     // Check ping after 1 second
-                    setTimeout(() => { checkPing(); }, checkAfter);
+                    timeoutID = setTimeout(() => { checkPing(); }, checkAfter);
                 };
                 checkPing();
 
@@ -166,7 +162,7 @@ function teoweb(connectType = "webrtc") {
 
                 dc.onclose = (event) => {
                     console.debug("dc.onclose, event:", event);
-                    stopCheckPing = true;
+                    clearTimeout(timeoutID);
                     that.dc = null;
                     dc.close();
 
