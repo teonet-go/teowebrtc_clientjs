@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.1.12";
+const version = "0.1.13";
 
 // Import TeoProxyClient class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -332,16 +332,22 @@ function teoweb(connectType = "webrtc") {
 
                         // When the connection is established
                         case "connected":
-                            console.debug("time since start:", Date.now() - startTime, "ms");
+                            console.debug("time since start:", Date.now() - startTime, "ms", pc);
                             that.dc = dc;
                             onconnected(server, dc);
                             break;
 
                         // When the connection is closed
-                        case "disconnected":
+                        case "disconnected": {
+                            const rec = !connected && autoReconnect;
+                            console.debug("disconnected rec:", rec, pc);
+
                             pc.close(); // The close pc call dc.onclose and reconnect
                             pc = null; // Kill pc object and all links to it
+
+                            if (rec) reconnect();
                             break;
+                        }
                     }
                 };
 
@@ -383,7 +389,7 @@ function teoweb(connectType = "webrtc") {
                 }
                 return;
             }
-            console.debug("dc.send error, dc does not exists");
+            console.error("dc.send error, dc does not exists");
         },
 
         /** Send request with command and data to WebRTC server */
@@ -421,7 +427,7 @@ function teoweb(connectType = "webrtc") {
                 }
                 this.dc.close();
                 this.dc = null;
-                connected = false;
+                // connected = false;
             }
         },
     };
@@ -457,10 +463,12 @@ function teoweb(connectType = "webrtc") {
 
             // Reconnect to Signal and restart WebRTC connection
             const reconnect = function () {
+                connected = false;
+
                 // teo.socket && teo.socket.close();
                 teo.socket = null;
                 setTimeout(() => {
-                    console.debug("reconnect(2)");
+                    console.debug("reconnect(ws)");
                     that.connect(addr, login, server);
                 }, "3000");
             };
@@ -476,7 +484,7 @@ function teoweb(connectType = "webrtc") {
 
                 // Call onclose callback
                 if (onclose) onclose(true);
-                connected = false;
+                // connected = false;
 
                 // Reconnect
                 if (autoReconnect) reconnect();
