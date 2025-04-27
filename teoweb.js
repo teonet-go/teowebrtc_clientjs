@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.1.13";
+const version = "0.1.14";
 
 // Import TeoProxyClient class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -17,6 +17,7 @@ function teoweb(connectType = "webrtc") {
     let onopen = null;
     let onclose = null;
     let connected = false;
+    let reconnectId;
 
     // Signal and WebRTC objects
     let ws;
@@ -120,7 +121,8 @@ function teoweb(connectType = "webrtc") {
                 connected = false;
 
                 // Reconnect after 3 seconds
-                setTimeout(() => {
+                clearTimeout(reconnectId);
+                reconnectId = setTimeout(() => {
                     if (connected) return;
                     console.debug("reconnect");
                     that.connect(addr, login, server);
