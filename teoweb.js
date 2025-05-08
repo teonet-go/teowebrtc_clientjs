@@ -1,9 +1,10 @@
 'use strict';
 
-const version = "0.1.14";
+const version = "0.2.0";
 
-// Import TeoProxyClient class and Command enum
+// Import TeoProxyClient, TeoWebtransport class and Command enum
 import TeoProxyClient from "./teoproxy.js";
+import TeoWebtransport from "./teowebtransport.js";
 import { Command } from "./teoproxy.js";
 
 /**
@@ -600,11 +601,106 @@ function teoweb(connectType = "webrtc") {
         },
     };
 
-    // Use WebRTC or Websocket server
-    if (connectType == "webrtc") {
-        return Object.assign({}, serverWebRTC, serverCommon);
+    // Webtransport server methods
+    const serverWebtransport = {
+
+        teo: null,
+        server: "",
+        login: "",
+
+        /**
+         * Connect to Teonet Webtransport server
+         * 
+         * @param {string} addr not used
+         * @param {string} login this web application name
+         * @param {string} server teowebtransport server url
+         * @param {bool} auto reconnect when connection to server is lost
+         */
+        connect: function (addr, login, server, autoReconnect = true) {
+
+            console.debug("webtramsport teoweb.connect started ver. " + version);
+
+            const that = this;
+            const startTime = Date.now();
+
+            // Create TeoWebTransport object
+            const teo = new TeoWebtransport();
+            // this.server = server;
+            this.login = login;
+            this.teo = teo;
+            this.dc = {};
+
+            // Connect to server
+            teo.connect(
+                // Teonet webtransport server url
+                addr,
+
+                // On connect callback
+                () => {
+                    console.debug("webtransport connected");
+                    console.debug("time since start:", Date.now() - startTime, "ms");
+
+                    // Call onopen callback
+                    if (onopen) onopen();
+                    connected = true;
+                },
+
+                // On disconnect callback
+                (normally) => {
+                    console.debug("webtransport disconnected", normally);
+
+                    // Call onclose callback. The reconnect will be called by 
+                    // TeoWebtransport if autoReconnect is true
+                    if (onclose) onclose(true);
+                    connected = false;
+                },
+
+                // On message callback
+                (msg) => {
+                    // Print received packet log message
+                    console.debug("onmessage", msg);
+                },
+
+                // Auto reconnect flag
+                autoReconnect,
+            );
+        },
+
+        /** Send request with command and data to WebRTC server */
+        sendCmd: function (cmd, data) {
+
+            const id = this.teo.sendCmd(cmd, data);
+
+            // Print console debug message
+            console.debug(
+                "wt.send command:", cmd + ",",
+                "data_length:", (data == null ? 0 : data.length) + ",",
+                "id:", id,
+            );
+
+            // Save to send packets map
+            mp.add(() => {
+                const gw = { command: cmd }
+                return gw;
+            }, id);
+        }
+    };
+
+    // Use WebRTC, Websocket or Webtransport server
+    switch (connectType) {
+        case "webrtc":
+            return Object.assign({}, serverWebRTC, serverCommon);
+
+        case "websocket":
+            return Object.assign({}, serverWebsocket, serverCommon);
+
+        case "webtransport":
+            return Object.assign({}, serverWebtransport, serverCommon);
+
+        default:
+            console.error("connectType " + connectType + " is unknown, try webrtc");
+            return Object.assign({}, serverWebRTC, serverCommon);
     }
-    return Object.assign({}, serverWebsocket, serverCommon);
 };
 
 // Map for teoweb
