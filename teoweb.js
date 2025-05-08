@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.2.2";
+const version = "0.2.4";
 
 // Import TeoProxyClient, TeoWebtransport class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -673,6 +673,7 @@ function teoweb(connectType = "webrtc") {
                     const gw = { id: msg.id, command: msg.command };
                     if (msg.err) {
                         gw.err = msg.data;
+                        msg.data = null;
                     }
 
                     // Execute readers (send command answer to all readers)
