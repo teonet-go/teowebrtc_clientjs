@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.2.0";
+const version = "0.2.1";
 
 // Import TeoProxyClient, TeoWebtransport class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -691,7 +691,7 @@ function teoweb(connectType = "webrtc") {
         case "webrtc":
             return Object.assign({}, serverWebRTC, serverCommon);
 
-        case "websocket":
+        case "ws":
             return Object.assign({}, serverWebsocket, serverCommon);
 
         case "webtransport":
