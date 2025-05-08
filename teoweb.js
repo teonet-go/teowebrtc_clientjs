@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.2.1";
+const version = "0.2.2";
 
 // Import TeoProxyClient, TeoWebtransport class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -658,7 +658,25 @@ function teoweb(connectType = "webrtc") {
                 // On message callback
                 (msg) => {
                     // Print received packet log message
-                    console.debug("onmessage", msg);
+                    // console.debug("onmessage", msg);
+
+                    // Process received packet and save it like
+                    // Teogw packet data:
+                    //
+                    // type TeogwData struct {
+                    // 	ID      uint32 `json:"id"`
+                    // 	Address string `json:"address"`
+                    // 	Command string `json:"command"`
+                    // 	Data    []byte `json:"data"`
+                    // 	Err     string `json:"err"`
+                    // }
+                    const gw = { id: msg.id, command: msg.command };
+                    if (msg.err) {
+                        gw.err = msg.data;
+                    }
+
+                    // Execute readers (send command answer to all readers)
+                    m.execAll(gw, msg.data);
                 },
 
                 // Auto reconnect flag
