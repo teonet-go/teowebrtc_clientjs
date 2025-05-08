@@ -248,11 +248,11 @@ class TeoWebtransport {
         // Display incoming data on bidi stream (messages mode)
         this.#messageReader(stream.readable, 'bidi stream receive error', msg => {
             if (msg.err) {
-                console.log('received on bidi stream, error:', msg.data);
+                console.log('wt.send error:  ', msg.command + ",", msg.data);
+                if (onmessage) onmessage(msg);
                 return;
             }
             console.log("wt.got  command:", msg.command + ",", "data len:", msg.data.length);
-
             if (onmessage) onmessage(msg);
         });
 
