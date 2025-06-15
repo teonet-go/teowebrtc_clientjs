@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.2.5";
+const version = "0.2.6";
 
 // Import TeoProxyClient, TeoWebtransport class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -521,7 +521,7 @@ function teoweb(connectType = "webrtc") {
 
                 //     return correctText;
                 // }
-                pac.data = convertToUtf8(pac.data);
+                if (pac.data) pac.data = convertToUtf8(pac.data);
 
                 // Got Connect answer with success
                 if (pac.cmd == Command.ConnectTo && !pac.err) {
