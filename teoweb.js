@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.2.4";
+const version = "0.2.5";
 
 // Import TeoProxyClient, TeoWebtransport class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -502,6 +502,26 @@ function teoweb(connectType = "webrtc") {
                     "data_length:", (pac.data == null ? 0 : pac.data.length) + ",",
                     "id:", pac.id + (pac.err ? ", error: " + pac.err : ""),
                 );
+
+                /**
+                 * Converts a string to utf-8 format
+                 * @param {string} text the text to convert
+                 * @returns {string} the converted text
+                 */
+                const convertToUtf8 = (text) => new TextDecoder("utf-8").decode(Uint8Array.from(text, (c) => c.charCodeAt(0)));
+                // const convertToUtf8 = function (text) {
+                //     // Create an array of integers from the text
+                //     const byteArray = [];
+                //     for (let i = 0; i < text.length; i++) {
+                //         byteArray.push(text.charCodeAt(i));
+                //     }
+
+                //     // Use the TextDecoder API to convert the array to a string
+                //     const correctText = new TextDecoder("utf-8").decode(new Uint8Array(byteArray));
+
+                //     return correctText;
+                // }
+                pac.data = convertToUtf8(pac.data);
 
                 // Got Connect answer with success
                 if (pac.cmd == Command.ConnectTo && !pac.err) {
