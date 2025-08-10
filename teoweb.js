@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.2.6";
+const version = "0.2.8";
 
 // Import TeoProxyClient, TeoWebtransport class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -98,7 +98,8 @@ function teoweb(connectType = "webrtc") {
          * @param {string} server server name
          * @param {bool} auto reconnect when connection to server is lost
          */
-        connect: function (addr, login, server, autoReconnect = true) {
+        connect: function (addr, login, server, autoReconnect = true,
+            usePing = false) {
 
             console.debug("webrtc teoweb.connect started ver. " + version);
 
@@ -155,7 +156,9 @@ function teoweb(connectType = "webrtc") {
                     // Check ping after 1 second
                     timeoutID = setTimeout(() => { checkPing(); }, checkAfter);
                 };
-                checkPing();
+
+                // Start check ping if required
+                if (usePing) checkPing();
 
                 dc.onopen = () => {
                     console.debug("dc.onopen");
@@ -348,7 +351,8 @@ function teoweb(connectType = "webrtc") {
                             pc.close(); // The close pc call dc.onclose and reconnect
                             pc = null; // Kill pc object and all links to it
 
-                            if (rec) reconnect();
+                            // if (rec) reconnect();
+                            if (autoReconnect) reconnect();
                             break;
                         }
                     }
