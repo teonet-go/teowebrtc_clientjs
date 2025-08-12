@@ -1,6 +1,6 @@
 'use strict';
 
-const version = "0.2.8";
+const version = "0.2.14";
 
 // Import TeoProxyClient, TeoWebtransport class and Command enum
 import TeoProxyClient from "./teoproxy.js";
@@ -105,6 +105,13 @@ function teoweb(connectType = "webrtc") {
 
             const that = this;
             let processWebrtc;
+            let connectionTimeout = null;
+            const clearConnectionTimeout = function () {
+                if (!connectionTimeout) return;
+                console.debug("clearConnectionTimeout");
+                clearTimeout(connectionTimeout);
+                connectionTimeout = null;
+            }
             const startTime = Date.now();
 
             // Close signal server ws connection when local and remote ice 
@@ -162,6 +169,7 @@ function teoweb(connectType = "webrtc") {
 
                 dc.onopen = () => {
                     console.debug("dc.onopen");
+                    // clearConnectionTimeout();
                     if (onopen) onopen();
                     connected = true;
                 };
@@ -180,6 +188,9 @@ function teoweb(connectType = "webrtc") {
                     // The ev.data got bytes array, so convert it to string and pare to
                     // gw object. Then base64 decode gw.data to string
                     // console.debug(ev.data);
+
+                    // Clear connection timeout
+                    clearConnectionTimeout(); // When first message is received, clear connection timeout.
 
                     // Get last message time
                     lastGetTime = Date.now();
@@ -235,11 +246,31 @@ function teoweb(connectType = "webrtc") {
             // Process signal commands
             const processSignal = function () {
 
-                console.debug("connect to:", addr);
+                console.debug("attempting to connect to:", addr);
+
+                // Custom timeout for WebSocket connection
+                const connectionTimeoutDuration = 10000; // 10 seconds
+                // let connectionTimeout;
+
+                // Start a timer. If onopen isn't called within the timeout,
+                // we'll manually close and trigger a reconnect.
+                clearConnectionTimeout();
+                connectionTimeout = setTimeout(() => {
+                    console.warn(`WebSocket connection to ${addr} timed out after ${connectionTimeoutDuration}ms.`);
+                    if (ws && ws.readyState !== WebSocket.OPEN) {
+                        ws.close();
+                        // The original 'onerror' handler calls reconnect, but ws.close()
+                        // does not trigger 'onerror'. So we must call reconnect here.
+                        reconnect();
+                    }
+                }, connectionTimeoutDuration);
+
                 ws = new WebSocket(addr);
+                console.debug("connect to:", addr);
 
                 // on websocket open
                 ws.onopen = function (ev) {
+                    // clearConnectionTimeout();
                     console.debug("ws.onopen");
                     console.debug("send login", login);
                     sendSignal({ signal: "login", login: login });
@@ -247,6 +278,7 @@ function teoweb(connectType = "webrtc") {
 
                 // on websocket error
                 ws.onerror = function (ev) {
+                    clearConnectionTimeout(); // An error occurred, clear the timeout.
                     console.debug("ws.onerror");
                     ws.close();
                     reconnect();
@@ -254,6 +286,7 @@ function teoweb(connectType = "webrtc") {
 
                 // on websocket close
                 ws.onclose = function (ev) {
+                    // clearConnectionTimeout(); // Connection is closed, clear any pending timeout.
                     console.debug("ws.onclose");
                 }
 
