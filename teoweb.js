@@ -747,13 +747,6 @@ function teoweb(connectType = "webrtc") {
 
             const id = this.teo.sendCmd(cmd, data);
 
-            // Print console debug message
-            console.debug(
-                "wt.send command:", cmd + ",",
-                "data_length:", (data == null ? 0 : data.length) + ",",
-                "id:", id,
-            );
-
             // Save to send packets map
             mp.add(() => {
                 const gw = { command: cmd }

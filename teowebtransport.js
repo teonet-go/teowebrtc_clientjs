@@ -252,7 +252,7 @@ class TeoWebtransport {
                 if (onmessage) onmessage(msg);
                 return;
             }
-            console.log("wt.got  command:", msg.command + ",", "data len:", msg.data.length);
+            console.log("wt.got  command:", msg.command + ",", "data len:", msg.data.length, "id:", msg.id);
             if (onmessage) onmessage(msg);
         });
 
@@ -306,9 +306,13 @@ class TeoWebtransport {
      */
     sendCmd(cmd, data = new Uint8Array(0)) {
         // Send the command and data to the WebTransport server
-        console.log("wt.send command:", cmd + ",", "data len:", data?.length);
         const id = this.id++;
-        this.writer.write(this.#encodeMessage(this.id++, cmd, data));
+        console.debug(
+            "wt.send command:", cmd + ",",
+            "data_length:", (data == null ? 0 : data.length) + ",",
+            "id:", id,
+        );
+        this.writer.write(this.#encodeMessage(id, cmd, data));
         return id;
     };
 
